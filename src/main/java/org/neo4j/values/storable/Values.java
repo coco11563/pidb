@@ -73,10 +73,6 @@ public final class Values {
     public static final ArrayValue EMPTY_FLOAT_ARRAY = Values.floatArray(new float[0]);
     public static final ArrayValue EMPTY_DOUBLE_ARRAY = Values.doubleArray(new double[0]);
     public static final TextArray EMPTY_TEXT_ARRAY = Values.stringArray();
-
-    private Values() {
-    }
-
     /**
      * Default value comparator. Will correctly compare all storable values and order the value groups according the
      * to orderability group.
@@ -84,6 +80,10 @@ public final class Values {
      * To get Comparability semantics, use .ternaryCompare
      */
     public static final ValueComparator COMPARATOR = new ValueComparator(ValueGroup::compareTo);
+    public static final Value NO_VALUE = NoValue.NO_VALUE;
+
+    private Values() {
+    }
 
     public static boolean isNumberValue(Object value) {
         return value instanceof NumberValue;
@@ -109,6 +109,8 @@ public final class Values {
         return value instanceof TemporalValue || value instanceof DurationValue;
     }
 
+    // DIRECT FACTORY METHODS
+
     public static double coerceToDouble(Value value) {
         if (value instanceof IntegralValue) {
             return ((IntegralValue) value).longValue();
@@ -118,10 +120,6 @@ public final class Values {
         }
         throw new UnsupportedOperationException(format("Cannot coerce %s to double", value));
     }
-
-    // DIRECT FACTORY METHODS
-
-    public static final Value NO_VALUE = NoValue.NO_VALUE;
 
     public static TextValue utf8Value(byte[] bytes) {
         if (bytes.length == 0) {
@@ -426,7 +424,7 @@ public final class Values {
         ///NOTE: blob support
         ////added by pidb
         if (value instanceof Blob) {
-            return cn.pidb.engine.BlobUtils.blob2Value((Blob)value);
+            return cn.pidb.engine.BlobUtils.blob2Value((Blob) value);
         }
         ////
 

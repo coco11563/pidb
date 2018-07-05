@@ -7,7 +7,9 @@ import org.neo4j.values.storable.Blob
 ;
 
 trait BlobStorage {
-  def save(uuid: String, blob: Blob);
+  def save(bid: Long, blob: Blob);
+
+  def load(bid: Long): Blob;
 }
 
 object BlobStorage {
@@ -15,7 +17,11 @@ object BlobStorage {
 }
 
 class FileBlobStorage(dir: File) extends BlobStorage {
-  override def save(uuid: String, blob: Blob): Unit = {
-    IOUtils.copy(blob.getInputStream(), new FileOutputStream(new File(dir, uuid)));
+  override def save(bid: Long, blob: Blob): Unit = {
+    IOUtils.copy(blob.getInputStream(), new FileOutputStream(new File(dir, "" + bid)));
+  }
+
+  def load(bid: Long): Blob = {
+    Blob.fromFile(new File(dir, "" + bid));
   }
 }

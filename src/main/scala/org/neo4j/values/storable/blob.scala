@@ -2,9 +2,11 @@ package org.neo4j.values.storable
 
 import java.io.{File, FileInputStream, InputStream}
 
-import cn.pidb.engine.BlobStorage
+import cn.pidb.engine.{BlobStorage, BlobUtils}
 import cn.pidb.util.IdGenerator
+import cn.pidb.util.ReflectUtils._
 import org.apache.commons.codec.digest.DigestUtils
+import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.values.ValueMapper
 
 trait Blob {
@@ -25,9 +27,6 @@ object Blob {
       new DigestUtils(DigestUtils.getMd5Digest).digestAsHex(getInputStream);
     };
   }
-
-  //TODO: blob-value
-  val VALUE_GROUP = ValueGroup.NO_VALUE;
 }
 
 class BlobValue(blob: Blob) extends ScalarValue {
@@ -37,15 +36,20 @@ class BlobValue(blob: Blob) extends ScalarValue {
   override def unsafeCompareTo(value: Value): Int = blob.length().compareTo(value.asInstanceOf[Blob].length())
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
-    //create UUID
-    val uuid = IdGenerator.uuid();
-    BlobStorage.get.save(uuid, blob);
-    valueWriter.writeString(uuid);
+    //TODO: unique blob id
+    val blobId = IdGenerator.nextId[Blob];
+    BlobStorage.get.save(blobId, blob);
+
+    //valueWriter: org.neo4j.kernel.impl.store.PropertyStore.PropertyBlockValueWriter
+    //setSingleBlockValue(block, keyId, PropertyType.INT, value)
+    BlobUtils.writeBlobId(valueWriter._get("block").asInstanceOf[PropertyBlock],
+      valueWriter._get("keyId").asInstanceOf[Int],
+      blobId);
   }
 
-  override def asObjectCopy(): AnyRef = this;
+  override def asObjectCopy(): AnyRef = blob;
 
-  override def valueGroup(): ValueGroup = Blob.VALUE_GROUP;
+  override def valueGroup(): ValueGroup = ValueGroup.NO_VALUE;
 
   override def numberType(): NumberType = NumberType.NO_NUMBER;
 
