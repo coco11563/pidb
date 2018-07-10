@@ -6,6 +6,7 @@ import cn.pidb.engine.{BlobStorage, BlobUtils}
 import cn.pidb.util.IdGenerator
 import cn.pidb.util.ReflectUtils._
 import org.apache.commons.codec.digest.DigestUtils
+import org.neo4j.kernel.impl.store.id.{IdGeneratorFactory, IdType}
 import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.values.ValueMapper
 
@@ -35,9 +36,13 @@ class BlobValue(blob: Blob) extends ScalarValue {
 
   override def unsafeCompareTo(value: Value): Int = blob.length().compareTo(value.asInstanceOf[Blob].length())
 
+  private def getBlobId(valueWriter: ValueWriter[_]): Long = {
+    //valueWriter._get("keyId").asInstanceOf[Int].toLong
+    IdGenerator.nextId[Blob];
+  }
+
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
-    //TODO: unique blob id
-    val blobId = IdGenerator.nextId[Blob];
+    val blobId = getBlobId(valueWriter);
     BlobStorage.get.save(blobId, blob);
 
     //valueWriter: org.neo4j.kernel.impl.store.PropertyStore.PropertyBlockValueWriter

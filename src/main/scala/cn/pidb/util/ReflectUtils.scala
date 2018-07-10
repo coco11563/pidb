@@ -1,5 +1,7 @@
 package cn.pidb.util
 
+import java.lang.reflect.Field
+
 /**
   * Created by bluejoe on 2018/7/5.
   */
@@ -30,11 +32,26 @@ class ReflectedObject(o: AnyRef) {
   def _get(name: String): AnyRef = {
     var o2 = o;
     for (fn <- name.split("\\.")) {
-      val field = o2.getClass.getDeclaredField(fn);
+      val field = _getField(o2.getClass, fn);
       field.setAccessible(true);
       o2 = field.get(o2);
     }
     o2;
+  }
+
+  private def _getField(clazz: Class[_], fieldName: String): Field = {
+    try {
+      clazz.getDeclaredField(fieldName);
+    }
+    catch {
+      case e: NoSuchFieldException => {
+        val sc = clazz.getSuperclass;
+        if (sc == null)
+          throw e;
+
+        _getField(sc, fieldName);
+      }
+    }
   }
 
   def _getLazy(name: String): AnyRef = {

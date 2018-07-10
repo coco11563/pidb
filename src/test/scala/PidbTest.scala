@@ -18,14 +18,14 @@ class PidbTest {
     //create a node
     val node1 = db.createNode();
     node1.setProperty("name", "bob");
-    //with blob property
+    //with a blob property
     node1.setProperty("photo", Blob.fromFile(new File("./test.png")));
 
     tx.success();
     tx.close();
     db.shutdown();
 
-    //load database
+    //reload database
     val db2 = new GraphDatabaseFactory().newEmbeddedDatabase(new File("./testdb"));
     val tx2 = db2.beginTx();
 
