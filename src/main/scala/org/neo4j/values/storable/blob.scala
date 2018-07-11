@@ -3,11 +3,10 @@ package org.neo4j.values.storable
 import java.io.{File, FileInputStream, InputStream}
 
 import cn.pidb.engine.{BlobStorage, BlobUtils}
-import cn.pidb.util.IdGenerator
 import cn.pidb.util.ReflectUtils._
 import org.apache.commons.codec.digest.DigestUtils
-import org.neo4j.kernel.impl.store.id.{IdGeneratorFactory, IdType}
 import org.neo4j.kernel.impl.store.record.PropertyBlock
+import org.neo4j.kernel.impl.transaction.state.RecordAccess
 import org.neo4j.values.ValueMapper
 
 trait Blob {
@@ -30,25 +29,33 @@ object Blob {
   }
 }
 
-class BlobValue(blob: Blob) extends ScalarValue {
+trait WithRecord {
+  def getRecord(): RecordAccess.RecordProxy[_, _];
+
+  def setRecord(record: RecordAccess.RecordProxy[_, _]): Unit;
+}
+
+class BlobValue(blob: Blob) extends ScalarValue with WithRecord {
   lazy val length = blob.length();
   lazy val digest = blob.digest();
+  var _record: RecordAccess.RecordProxy[_, _] = _;
+
+  def setRecord(record: RecordAccess.RecordProxy[_, _]) = _record = record;
+
+  override def getRecord = _record;
 
   override def unsafeCompareTo(value: Value): Int = blob.length().compareTo(value.asInstanceOf[Blob].length())
 
-  private def getBlobId(valueWriter: ValueWriter[_]): Long = {
-    //valueWriter._get("keyId").asInstanceOf[Int].toLong
-    IdGenerator.nextId[Blob];
-  }
-
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
-    val blobId = getBlobId(valueWriter);
+    val recordId = _record.getKey;
+    val keyId: Int = valueWriter._get("keyId").asInstanceOf[Int];
+    val blobId = recordId << 32 | keyId;
     BlobStorage.get.save(blobId, blob);
 
     //valueWriter: org.neo4j.kernel.impl.store.PropertyStore.PropertyBlockValueWriter
     //setSingleBlockValue(block, keyId, PropertyType.INT, value)
     BlobUtils.writeBlobId(valueWriter._get("block").asInstanceOf[PropertyBlock],
-      valueWriter._get("keyId").asInstanceOf[Int],
+      keyId,
       blobId);
   }
 
