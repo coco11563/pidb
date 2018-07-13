@@ -22,7 +22,6 @@ package org.neo4j.kernel.impl.store;
 import cn.pidb.engine.BlobUtils;
 import org.neo4j.kernel.impl.store.format.standard.PropertyRecordFormat;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
-import org.neo4j.values.storable.LongValue;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
@@ -186,12 +185,12 @@ public enum PropertyType {
     BLOB(15) {
         @Override
         public Value value(PropertyBlock block, PropertyStore store) {
-            return BlobUtils.blobId2Value(((LongValue) LONG.value(block, store)).longValue());
+            return BlobUtils.readBlobValue(block, store);
         }
 
         @Override
         public int calculateNumberOfBlocksUsed(long firstBlock) {
-            return LONG.calculateNumberOfBlocksUsed(firstBlock);
+            return 4;
         }
     };
 

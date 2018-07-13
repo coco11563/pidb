@@ -8,12 +8,17 @@ import org.neo4j.values.storable.Blob
 
 class PidbTest {
 
+  def openDatabase() = {
+    new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(new File("./testdb"))
+      .loadPropertiesFromFile("./blob.properties").newGraphDatabase();
+  }
+
   @Test
   def testProperty(): Unit = {
     FileUtils.deleteDirectory(new File("./testdb"));
     //create a new database
     if (true) {
-      val db = new GraphDatabaseFactory().newEmbeddedDatabase(new File("./testdb"));
+      val db = openDatabase();
 
       val tx = db.beginTx();
       //create a node
@@ -34,7 +39,7 @@ class PidbTest {
 
     //reload database
     if (true) {
-      val db1 = new GraphDatabaseFactory().newEmbeddedDatabase(new File("./testdb"));
+      val db1 = openDatabase();
       val tx1 = db1.beginTx();
       val node3 = db1.createNode();
       node3.setProperty("name", "yahoo");
@@ -47,7 +52,7 @@ class PidbTest {
     }
 
     //reload database
-    val db2 = new GraphDatabaseFactory().newEmbeddedDatabase(new File("./testdb"));
+    val db2 = openDatabase();
     val tx2 = db2.beginTx();
 
     //get first node

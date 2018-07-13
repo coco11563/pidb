@@ -2,8 +2,9 @@ package org.neo4j.values.storable
 
 import java.io.{File, FileInputStream, InputStream}
 
-import cn.pidb.engine.{BlobStorage, BlobUtils}
+import cn.pidb.engine.BlobUtils
 import cn.pidb.util.ReflectUtils._
+import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.digest.DigestUtils
 import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.kernel.impl.transaction.state.RecordAccess
@@ -12,7 +13,25 @@ import org.neo4j.values.ValueMapper
 trait Blob {
   def getInputStream(): InputStream;
 
-  def digest(): String;
+  /**
+    * 128-bit
+    *
+    * @return
+    */
+  def digest(): Array[Byte];
+
+  /**
+    * this method helps calculate MD5 digest
+    *
+    * @param is
+    * @return
+    */
+  final def makeMd5Digest(is: InputStream): Array[Byte] = {
+    new DigestUtils(DigestUtils.getMd5Digest).digest(is);
+  };
+
+  final def bytes2Hex(bytes: Array[Byte]): String =
+    Hex.encodeHexString(bytes);
 
   def length(): Long;
 }
@@ -23,12 +42,15 @@ object Blob {
 
     override def length = file.length();
 
-    override def digest(): String = {
-      new DigestUtils(DigestUtils.getMd5Digest).digestAsHex(getInputStream);
+    override def digest(): Array[Byte] = {
+      makeMd5Digest(getInputStream);
     };
   }
 }
 
+/**
+  * this trait helps attach the Record to a property value
+  */
 trait WithRecord {
   def getRecord(): RecordAccess.RecordProxy[_, _];
 
@@ -47,16 +69,8 @@ class BlobValue(blob: Blob) extends ScalarValue with WithRecord {
   override def unsafeCompareTo(value: Value): Int = blob.length().compareTo(value.asInstanceOf[Blob].length())
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
-    val recordId = _record.getKey;
-    val keyId: Int = valueWriter._get("keyId").asInstanceOf[Int];
-    val blobId = recordId << 32 | keyId;
-    BlobStorage.get.save(blobId, blob);
-
-    //valueWriter: org.neo4j.kernel.impl.store.PropertyStore.PropertyBlockValueWriter
-    //setSingleBlockValue(block, keyId, PropertyType.INT, value)
-    BlobUtils.writeBlobId(valueWriter._get("block").asInstanceOf[PropertyBlock],
-      keyId,
-      blobId);
+    BlobUtils.writeBlobValue(this, valueWriter._get("keyId").asInstanceOf[Int],
+      valueWriter._get("block").asInstanceOf[PropertyBlock], null);
   }
 
   override def asObjectCopy(): AnyRef = blob;

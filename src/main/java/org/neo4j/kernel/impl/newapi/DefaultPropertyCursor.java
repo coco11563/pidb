@@ -280,7 +280,7 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
                 return temporalValue();
             ////NOTE:add blob type
             case BLOB:
-                return BlobUtils.blobId2Value(readLong().longValue());
+                return BlobUtils.readBlobValue(this.getBlocks());
             default:
                 throw new IllegalStateException("Unsupported PropertyType: " + type.name());
         }
