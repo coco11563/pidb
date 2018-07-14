@@ -18,33 +18,25 @@ trait Blob {
     *
     * @return
     */
-  def digest(): Array[Byte];
+  def calculateDigest(): Array[Byte] = new DigestUtils(DigestUtils.getMd5Digest).digest(getInputStream);
 
-  /**
-    * this method helps calculate MD5 digest
-    *
-    * @param is
-    * @return
-    */
-  final def makeMd5Digest(is: InputStream): Array[Byte] = {
-    new DigestUtils(DigestUtils.getMd5Digest).digest(is);
-  };
+  def calculateFirst8Bytes(): Array[Byte] = {
+    val bytes = Array[Byte](0, 0, 0, 0, 0, 0, 0, 0);
+    getInputStream().read(bytes);
+    bytes;
+  }
 
   final def bytes2Hex(bytes: Array[Byte]): String =
     Hex.encodeHexString(bytes);
 
-  def length(): Long;
+  def calculateLength(): Long;
 }
 
 object Blob {
   def fromFile(file: File) = new Blob {
     override def getInputStream = new FileInputStream(file);
 
-    override def length = file.length();
-
-    override def digest(): Array[Byte] = {
-      makeMd5Digest(getInputStream);
-    };
+    override def calculateLength = file.length();
   }
 }
 
@@ -57,16 +49,20 @@ trait WithRecord {
   def setRecord(record: RecordAccess.RecordProxy[_, _]): Unit;
 }
 
-class BlobValue(blob: Blob) extends ScalarValue with WithRecord {
-  lazy val length = blob.length();
-  lazy val digest = blob.digest();
+class BlobValue(val blob: Blob, val length: Long, val first8Bytes: Array[Byte]) extends ScalarValue with WithRecord {
+  lazy val digest = blob.calculateDigest();
+
   var _record: RecordAccess.RecordProxy[_, _] = _;
+
+  def this(blob: Blob) {
+    this(blob, blob.calculateLength(), blob.calculateFirst8Bytes());
+  }
 
   def setRecord(record: RecordAccess.RecordProxy[_, _]) = _record = record;
 
   override def getRecord = _record;
 
-  override def unsafeCompareTo(value: Value): Int = blob.length().compareTo(value.asInstanceOf[Blob].length())
+  override def unsafeCompareTo(value: Value): Int = length.compareTo(value.asInstanceOf[BlobValue].length)
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
     BlobUtils.writeBlobValue(this, valueWriter._get("keyId").asInstanceOf[Int],
@@ -83,7 +79,10 @@ class BlobValue(blob: Blob) extends ScalarValue with WithRecord {
     s"(blob,length=$length,digest=$digest)"
   }
 
-  override def equals(value: Value): Boolean = this.digest.equals(value.asInstanceOf[BlobValue].digest);
+  override def equals(value: Value): Boolean =
+    this.length.equals(value.asInstanceOf[BlobValue].length) &&
+      this.first8Bytes.equals(value.asInstanceOf[BlobValue].first8Bytes) &&
+      this.digest.equals(value.asInstanceOf[BlobValue].digest);
 
   override def computeHash(): Int = {
     digest.hashCode;
