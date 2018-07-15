@@ -10,7 +10,7 @@ class PidbTest {
 
   def openDatabase() = {
     new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(new File("./testdb"))
-      .loadPropertiesFromFile("./blob.properties").newGraphDatabase();
+      .loadPropertiesFromFile("./neo4j.properties").newGraphDatabase();
   }
 
   @Test

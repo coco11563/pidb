@@ -185,7 +185,7 @@ public enum PropertyType {
     BLOB(15) {
         @Override
         public Value value(PropertyBlock block, PropertyStore store) {
-            return BlobUtils.readBlobValue(block, store);
+            return BlobUtils.readBlobValue(block, store, store.configuration);
         }
 
         @Override

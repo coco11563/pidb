@@ -6,6 +6,7 @@ import cn.pidb.engine.BlobUtils
 import cn.pidb.util.ReflectUtils._
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.digest.DigestUtils
+import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.kernel.impl.transaction.state.RecordAccess
 import org.neo4j.values.ValueMapper
@@ -65,8 +66,9 @@ class BlobValue(val blob: Blob, val length: Long, val first8Bytes: Array[Byte]) 
   override def unsafeCompareTo(value: Value): Int = length.compareTo(value.asInstanceOf[BlobValue].length)
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
+    val conf = valueWriter._get("stringAllocator.idGenerator.source.configuration").asInstanceOf[Config];
     BlobUtils.writeBlobValue(this, valueWriter._get("keyId").asInstanceOf[Int],
-      valueWriter._get("block").asInstanceOf[PropertyBlock], null);
+      valueWriter._get("block").asInstanceOf[PropertyBlock], null, conf);
   }
 
   override def asObjectCopy(): AnyRef = blob;
