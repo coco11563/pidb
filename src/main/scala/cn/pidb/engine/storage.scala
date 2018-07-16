@@ -20,7 +20,7 @@ trait BlobStorage {
 object BlobStorage extends Logging {
   val storages = MMap[Config, BlobStorage]();
 
-  //TODO: initialize/disconnect storage connector on initialize()/shutdown()
+  //TODO: ugly code, initialize/disconnect storage connector on initialize()/shutdown()
   def get(conf: Config): BlobStorage = {
     storages.getOrElseUpdate(conf, {
       val storageName = conf.getRaw("blob.storage").orElse {
@@ -40,6 +40,7 @@ class FileBlobStorage extends BlobStorage with Logging {
 
   override def save(bid: String, blob: Blob): Unit = {
     IOUtils.copy(blob.getInputStream(), new FileOutputStream(new File(blobDir, "blob." + bid)));
+    IOUtils.write(blob.calculateDigest(), new FileOutputStream(new File(blobDir, "blob." + bid + ".md5")));
   }
 
   def load(bid: String): Blob = {
