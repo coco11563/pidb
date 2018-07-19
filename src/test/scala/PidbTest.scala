@@ -25,7 +25,8 @@ class PidbTest {
       val node1 = db.createNode();
       node1.setProperty("name", "bob");
       //with a blob property
-      node1.setProperty("photo", Blob.fromFile(new File("./test.png")));
+      //node1.setProperty("photo", Blob.fromFile(new File("./test.png")));
+      node1.setProperty("photo", null);
       println(node1);
       val node2 = db.createNode();
       node2.setProperty("name", "alex");
@@ -69,6 +70,8 @@ class PidbTest {
       IOUtils.toByteArray(blob1.getInputStream()));
 
     val blob2 = db2.execute("match (n) where n.name='alex' return n.photo").next().get("n.photo").asInstanceOf[Blob];
+    System.out.println(blob2);
+
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test2.jpg"))),
       IOUtils.toByteArray(blob2.getInputStream()));
 
