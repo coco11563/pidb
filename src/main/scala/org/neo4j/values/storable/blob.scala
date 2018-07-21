@@ -109,9 +109,4 @@ class BlobValue(val blob: Blob, val length: Long, val first8Bytes: Array[Byte]) 
 
   //TODO: map()
   override def map[T](valueMapper: ValueMapper[T]): T = blob.asInstanceOf[T];
-
-  override def updateHash(hashFunction: HashFunction, hash: Long): Long =
-  {
-    hashFunction.update(hash, hash);
-  }
 }
