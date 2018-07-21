@@ -13,8 +13,8 @@ import java.io.File;
 
 public class BlobFromFile
 {
-    @UserFunction
-    @Description("cn.pidb.func.blobFromFile('/path/to/file'), generate a blob object from the given file")
+    @UserFunction("Blob.fromFile")
+    @Description("generate a blob object from the given file")
     public Blob blobFromFile(@Name("filePath") String filePath)
     {
         Blob blob = null;
@@ -31,11 +31,5 @@ public class BlobFromFile
         }
 
         return blob;
-    }
-
-    public static void main(String[] args)
-    {
-        Blob blob = new BlobFromFile().blobFromFile("./test.png");
-        System.out.println(blob);
     }
 }

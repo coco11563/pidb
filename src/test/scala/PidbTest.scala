@@ -1,16 +1,33 @@
 import java.io.{File, FileInputStream}
 
+import cn.pidb.func.BlobFromFile
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.junit.{Assert, Test}
-import org.neo4j.graphdb.Node
 import org.neo4j.graphdb.factory.GraphDatabaseFactory
+import org.neo4j.graphdb.{GraphDatabaseService, Node}
+import org.neo4j.kernel.impl.proc.Procedures
+import org.neo4j.kernel.internal.GraphDatabaseAPI
 import org.neo4j.values.storable.Blob
 
 class PidbTest {
 
   def openDatabase() = {
-    new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(new File("./testdb"))
+    val db = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(new File("./testdb"))
       .loadPropertiesFromFile("./neo4j.properties").newGraphDatabase();
+    registerProcedure(db, classOf[BlobFromFile]);
+    db;
+  }
+
+  //TODO: embed it in PiDB
+  private def registerProcedure(db: GraphDatabaseService, procedures: Class[_]*) {
+    val proceduresService = db.asInstanceOf[GraphDatabaseAPI].getDependencyResolver().resolveDependency(classOf[Procedures]);
+
+    proceduresService.registerType(classOf[Blob], Blob.BLOB_TYPE);
+
+    for (procedure <- procedures) {
+      proceduresService.registerProcedure(procedure);
+      proceduresService.registerFunction(procedure);
+    }
   }
 
   @Test
@@ -30,7 +47,7 @@ class PidbTest {
       val node2 = db.createNode();
       node2.setProperty("name", "alex");
       //with a blob property
-      node2.setProperty("photo", Blob.fromFile(new File("./test2.jpg")));
+      node2.setProperty("photo", Blob.fromFile(new File("./test1.png")));
       println(node2);
       tx.success();
       tx.close();
@@ -41,11 +58,7 @@ class PidbTest {
     if (true) {
       val db1 = openDatabase();
       val tx1 = db1.beginTx();
-      val node3 = db1.createNode();
-      node3.setProperty("name", "yahoo");
-      //with a blob property
-      node3.setProperty("photo", Blob.fromFile(new File("./test.png")));
-      println(node3);
+      db1.execute("create (n: Person {name:'yahoo', photo: Blob.fromFile('./test2.jpg')})");
       tx1.success();
       tx1.close();
       db1.shutdown();
@@ -69,8 +82,12 @@ class PidbTest {
       IOUtils.toByteArray(blob1.getInputStream()));
 
     val blob2 = db2.execute("match (n) where n.name='alex' return n.photo").next().get("n.photo").asInstanceOf[Blob];
-    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test2.jpg"))),
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
       IOUtils.toByteArray(blob2.getInputStream()));
+
+    val blob3 = db2.execute("match (n) where n.name='yahoo' return n.photo").next().get("n.photo").asInstanceOf[Blob];
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test2.jpg"))),
+      IOUtils.toByteArray(blob3.getInputStream()));
 
     tx2.success();
     db2.shutdown();

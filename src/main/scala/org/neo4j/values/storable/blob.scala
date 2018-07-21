@@ -6,6 +6,8 @@ import cn.pidb.engine.BlobUtils
 import cn.pidb.util.ReflectUtils._
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.digest.DigestUtils
+import org.neo4j.cypher.internal.util.v3_4.symbols._
+import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.kernel.impl.transaction.state.RecordAccess
@@ -39,6 +41,19 @@ object Blob {
 
     override def calculateLength = file.length();
   }
+
+  val BLOB_TYPE = new NeoBlobType();
+  val CYPHER_BLOB_TYPE = new CypherBlobType();
+}
+
+class NeoBlobType extends Neo4jTypes.AnyType("BLOB?") {
+
+}
+
+class CypherBlobType extends CypherType {
+  val parentType = CTAny
+  override val toString = "Blob"
+  override val toNeoTypeString = "BLOB?"
 }
 
 /**
@@ -82,7 +97,8 @@ class BlobValue(val blob: Blob, val length: Long, val first8Bytes: Array[Byte]) 
   }
 
   override def equals(value: Value): Boolean =
-    this.length.equals(value.asInstanceOf[BlobValue].length) &&
+    value.isInstanceOf[BlobValue] &&
+      this.length.equals(value.asInstanceOf[BlobValue].length) &&
       this.first8Bytes.equals(value.asInstanceOf[BlobValue].first8Bytes) &&
       this.digest.equals(value.asInstanceOf[BlobValue].digest);
 
