@@ -11,6 +11,7 @@ import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.kernel.impl.transaction.state.RecordAccess
+import org.neo4j.hashing.HashFunction
 import org.neo4j.values.ValueMapper
 
 trait Blob {
@@ -108,4 +109,9 @@ class BlobValue(val blob: Blob, val length: Long, val first8Bytes: Array[Byte]) 
 
   //TODO: map()
   override def map[T](valueMapper: ValueMapper[T]): T = blob.asInstanceOf[T];
+
+  override def updateHash(hashFunction: HashFunction, hash: Long): Long =
+  {
+    hashFunction.update(hash, hash);
+  }
 }
