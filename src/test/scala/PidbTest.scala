@@ -1,6 +1,6 @@
 import java.io.{File, FileInputStream}
 
-import cn.pidb.func.BlobFromFile
+import cn.pidb.func.BlobFunctions
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.junit.{Assert, Test}
 import org.neo4j.graphdb.factory.GraphDatabaseFactory
@@ -14,7 +14,7 @@ class PidbTest {
   def openDatabase() = {
     val db = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(new File("./testdb"))
       .loadPropertiesFromFile("./neo4j.properties").newGraphDatabase();
-    registerProcedure(db, classOf[BlobFromFile]);
+    registerProcedure(db, classOf[BlobFunctions]);
     db;
   }
 
@@ -83,6 +83,9 @@ class PidbTest {
     val blob1 = db2.execute("match (n) where n.name='bob' return n.photo").next().get("n.photo").asInstanceOf[Blob];
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       IOUtils.toByteArray(blob1.getInputStream()));
+
+    val len = db2.execute("match (n) where n.name='bob' return Blob.len(n.photo)").next().get("n.photo").asInstanceOf[Long];
+    Assert.assertEquals(len, new File("./test.png").length());
 
     Assert.assertFalse(db2.execute("match (n) where n.name='alex' return n.photo").hasNext);
 
