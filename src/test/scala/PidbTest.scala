@@ -84,6 +84,9 @@ class PidbTest {
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       IOUtils.toByteArray(blob1.getInputStream()));
 
+    val len2 = db2.execute("return Blob.len(Blob.fromFile('./test.png'))").next().get("n.photo").asInstanceOf[Long];
+    Assert.assertEquals(len2, new File("./test.png").length());
+
     val len = db2.execute("match (n) where n.name='bob' return Blob.len(n.photo)").next().get("n.photo").asInstanceOf[Long];
     Assert.assertEquals(len, new File("./test.png").length());
 

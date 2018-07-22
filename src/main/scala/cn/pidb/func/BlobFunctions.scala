@@ -3,7 +3,7 @@ package cn.pidb.func
 import java.io.File
 
 import org.neo4j.procedure.{Description, Name, UserFunction}
-import org.neo4j.values.storable.Blob
+import org.neo4j.values.storable.{BlobValue, Blob}
 
 /**
   * Created by bluejoe on 2018/7/22.
