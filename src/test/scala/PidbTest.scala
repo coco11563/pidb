@@ -18,11 +18,9 @@ class PidbTest {
     db;
   }
 
-  //TODO: embed it in PiDB
+  //TODO: embed it in PiDB?
   private def registerProcedure(db: GraphDatabaseService, procedures: Class[_]*) {
     val proceduresService = db.asInstanceOf[GraphDatabaseAPI].getDependencyResolver().resolveDependency(classOf[Procedures]);
-
-    proceduresService.registerType(classOf[Blob], Blob.BLOB_TYPE);
 
     for (procedure <- procedures) {
       proceduresService.registerProcedure(procedure);
@@ -59,6 +57,11 @@ class PidbTest {
       val db1 = openDatabase();
       val tx1 = db1.beginTx();
       db1.execute("create (n: Person {name:'yahoo', photo: Blob.fromFile('./test2.jpg')})");
+
+      //delete one
+      val node2 = db1.execute("match (n) where n.name='alex' return n").next().get("n").asInstanceOf[Node];
+      node2.delete();
+
       tx1.success();
       tx1.close();
       db1.shutdown();
@@ -81,9 +84,7 @@ class PidbTest {
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       IOUtils.toByteArray(blob1.getInputStream()));
 
-    val blob2 = db2.execute("match (n) where n.name='alex' return n.photo").next().get("n.photo").asInstanceOf[Blob];
-    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
-      IOUtils.toByteArray(blob2.getInputStream()));
+    Assert.assertFalse(db2.execute("match (n) where n.name='alex' return n.photo").hasNext);
 
     val blob3 = db2.execute("match (n) where n.name='yahoo' return n.photo").next().get("n.photo").asInstanceOf[Blob];
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test2.jpg"))),

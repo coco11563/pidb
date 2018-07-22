@@ -43,7 +43,7 @@ object Blob {
     override def calculateLength = file.length();
   }
 
-  val BLOB_TYPE = new NeoBlobType();
+  val NEO_BLOB_TYPE = new NeoBlobType();
   val CYPHER_BLOB_TYPE = new CypherBlobType();
 }
 
