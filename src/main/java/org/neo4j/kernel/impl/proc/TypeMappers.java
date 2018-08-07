@@ -102,7 +102,7 @@ public class TypeMappers extends DefaultValueMapper {
     private void registerScalarsAndCollections() {
 
         //NOTE: supports blob
-        registerType(Blob.class, new TypeMappers.DefaultValueConverter(Blob$.MODULE$.NEO_BLOB_TYPE(), Blob.class));
+        registerType(Blob.class, TO_BLOB);
         /////////////
 
         registerType(String.class, TO_STRING);
@@ -169,6 +169,13 @@ public class TypeMappers extends DefaultValueMapper {
             DefaultParameterValue::ntString);
     private static final DefaultValueConverter TO_INTEGER = new DefaultValueConverter(NTInteger, Long.class, s ->
             ntInteger(parseLong(s)));
+
+    ////////NOTE: blob type
+    private static final DefaultValueConverter TO_BLOB = new DefaultValueConverter(Blob$.MODULE$.NEO_BLOB_TYPE(),
+            Blob.class, s ->
+            new DefaultParameterValue(s, Blob$.MODULE$.NEO_BLOB_TYPE()));
+    ///////
+
     private static final DefaultValueConverter TO_FLOAT = new DefaultValueConverter(NTFloat, Double.class, s ->
             ntFloat(parseDouble(s)));
     private static final DefaultValueConverter TO_NUMBER = new DefaultValueConverter(NTNumber, Number.class, s ->

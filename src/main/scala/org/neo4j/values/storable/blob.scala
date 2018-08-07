@@ -11,7 +11,6 @@ import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.kernel.impl.transaction.state.RecordAccess
-import org.neo4j.hashing.HashFunction
 import org.neo4j.values.ValueMapper
 
 trait Blob {
@@ -48,13 +47,12 @@ object Blob {
 }
 
 class NeoBlobType extends Neo4jTypes.AnyType("BLOB?") {
-
 }
 
 class CypherBlobType extends CypherType {
-  val parentType = CTAny
-  override val toString = "Blob"
-  override val toNeoTypeString = "BLOB?"
+  override def parentType = CTAny
+
+  override def toNeoTypeString = "BLOB?"
 }
 
 /**

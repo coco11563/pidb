@@ -1,8 +1,11 @@
 import java.io.{File, FileInputStream}
 
 import cn.pidb.func.BlobFunctions
+import eu.medsea.mimeutil.MimeUtil
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.junit.{Assert, Test}
+import org.neo4j.cypher
+import org.neo4j.cypher.internal.frontend.v2_3.SemanticError
 import org.neo4j.graphdb.factory.GraphDatabaseFactory
 import org.neo4j.graphdb.{GraphDatabaseService, Node}
 import org.neo4j.kernel.impl.proc.Procedures
@@ -30,6 +33,9 @@ class PidbTest {
 
   @Test
   def testProperty(): Unit = {
+    MimeUtil.registerMimeDetector("eu.medsea.mimeutil.detector.MagicMimeMimeDetector");
+    MimeUtil.getMimeTypes("")
+
     FileUtils.deleteDirectory(new File("./testdb"));
     //create a new database
     if (true) {
@@ -56,6 +62,7 @@ class PidbTest {
     if (true) {
       val db1 = openDatabase();
       val tx1 = db1.beginTx();
+      //val x = db1.execute("return String.toUpperCase(1234) as X").next().get("X");
       db1.execute("create (n: Person {name:'yahoo', photo: Blob.fromFile('./test2.jpg')})");
 
       //delete one
@@ -84,11 +91,12 @@ class PidbTest {
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       IOUtils.toByteArray(blob1.getInputStream()));
 
-    val len2 = db2.execute("return Blob.len(Blob.fromFile('./test.png'))").next().get("n.photo").asInstanceOf[Long];
-    Assert.assertEquals(len2, new File("./test.png").length());
-
-    val len = db2.execute("match (n) where n.name='bob' return Blob.len(n.photo)").next().get("n.photo").asInstanceOf[Long];
+    //Blob.len(n.photo) is ok
+    val len = db2.execute("match (n) where n.name='bob' return Blob.len(n.photo) as len").next().get("len").asInstanceOf[Long];
     Assert.assertEquals(len, new File("./test.png").length());
+
+    val len2 = db2.execute("return Blob.len(Blob.fromFile('./test.png')) as len").next().get("len").asInstanceOf[Long];
+    Assert.assertEquals(len2, new File("./test.png").length());
 
     Assert.assertFalse(db2.execute("match (n) where n.name='alex' return n.photo").hasNext);
 

@@ -3,15 +3,17 @@ package cn.pidb.func
 import java.io.File
 
 import org.neo4j.procedure.{Description, Name, UserFunction}
-import org.neo4j.values.storable.{BlobValue, Blob}
+import org.neo4j.values.storable.Blob
 
 /**
   * Created by bluejoe on 2018/7/22.
   */
 class BlobFunctions {
+  //FIXME: use Blob instead of Object as parameter type
+
   @UserFunction("Blob.fromFile")
   @Description("generate a blob object from the given file")
-  def blobFromFile(@Name("filePath") filePath: String): Blob = {
+  def fromFile(@Name("filePath") filePath: String): Object = {
     if (filePath == null || filePath.trim.isEmpty) {
       throw new CypherFunctionException(s"invalid file path: $filePath");
     }
@@ -26,8 +28,8 @@ class BlobFunctions {
 
   @UserFunction("Blob.len")
   @Description("get length of a blob object")
-  def getBlobLength(@Name("blob") blob: Blob): Long = {
-    blob.calculateLength();
+  def getBlobLength(@Name("blob") blob: Object): Long = {
+    blob.asInstanceOf[Blob].calculateLength();
   }
 }
 
