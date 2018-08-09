@@ -29,7 +29,7 @@ class BlobFunctions {
   @UserFunction("Blob.len")
   @Description("get length of a blob object")
   def getBlobLength(@Name("blob") blob: Object): Long = {
-    blob.asInstanceOf[Blob].calculateLength();
+    blob.asInstanceOf[Blob].length;
   }
 }
 

@@ -1,20 +1,20 @@
 package cn.pidb.engine
 
-import java.io.{File, FileOutputStream}
+import java.io.{File, FileInputStream, FileOutputStream, InputStream}
 
 import cn.pidb.util.Logging
 import org.apache.commons.io.IOUtils
 import org.neo4j.kernel.configuration.Config
-import org.neo4j.values.storable.Blob
+import org.neo4j.values.storable.InputStreamSource
 
 import scala.collection.mutable.{Map => MMap}
 
 trait BlobStorage {
-  def save(bid: String, blob: Blob);
+  def save(bid: String, iss: InputStreamSource);
 
   def configure(conf: Config): Unit;
 
-  def load(bid: String): Blob;
+  def load(bid: String): InputStreamSource;
 }
 
 object BlobStorage extends Logging {
@@ -38,13 +38,16 @@ object BlobStorage extends Logging {
 class FileBlobStorage extends BlobStorage with Logging {
   var blobDir: File = _;
 
-  override def save(bid: String, blob: Blob): Unit = {
-    IOUtils.copy(blob.getInputStream(), new FileOutputStream(new File(blobDir, "blob." + bid)));
-    IOUtils.write(blob.calculateDigest(), new FileOutputStream(new File(blobDir, "blob." + bid + ".md5")));
+  override def save(bid: String, iss: InputStreamSource): Unit = {
+    IOUtils.copy(iss.getInputStream(), new FileOutputStream(new File(blobDir, "blob." + bid)));
   }
 
-  def load(bid: String): Blob = {
-    Blob.fromFile(new File(blobDir, "blob." + bid));
+  def load(bid: String): InputStreamSource = {
+    new InputStreamSource() {
+      override def getInputStream(): InputStream = {
+        new FileInputStream(new File(blobDir, "blob." + bid));
+      }
+    }
   }
 
   override def configure(conf: Config): Unit = {

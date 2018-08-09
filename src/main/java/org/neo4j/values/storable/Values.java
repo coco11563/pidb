@@ -424,7 +424,7 @@ public final class Values {
         ///NOTE: blob support
         ////added by pidb
         if (value instanceof Blob) {
-            return cn.pidb.engine.BlobUtils.blob2Value((Blob) value);
+            return new BlobValue((Blob) value);
         }
         ////
 

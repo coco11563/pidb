@@ -181,7 +181,7 @@ public enum PropertyType {
             return TemporalType.calculateNumberOfBlocksUsed(firstBlock);
         }
     },
-    ///////NOTE: added by pidb
+    ///////NOTE: blob type, added by pidb
     BLOB(15) {
         @Override
         public Value value(PropertyBlock block, PropertyStore store) {

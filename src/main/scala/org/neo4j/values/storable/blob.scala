@@ -2,10 +2,9 @@ package org.neo4j.values.storable
 
 import java.io.{File, FileInputStream, InputStream}
 
-import cn.pidb.engine.BlobUtils
+import cn.pidb.engine.{BlobUtils, MimeType}
+import cn.pidb.util.CodecUtils
 import cn.pidb.util.ReflectUtils._
-import org.apache.commons.codec.binary.Hex
-import org.apache.commons.codec.digest.DigestUtils
 import org.neo4j.cypher.internal.util.v3_4.symbols._
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.kernel.configuration.Config
@@ -13,33 +12,27 @@ import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.kernel.impl.transaction.state.RecordAccess
 import org.neo4j.values.ValueMapper
 
-trait Blob {
+trait InputStreamSource {
   def getInputStream(): InputStream;
+}
 
-  /**
-    * 128-bit
-    *
-    * @return
-    */
-  def calculateDigest(): Array[Byte] = new DigestUtils(DigestUtils.getMd5Digest).digest(getInputStream);
-
-  def calculateFirst8Bytes(): Array[Byte] = {
-    val bytes = Array[Byte](0, 0, 0, 0, 0, 0, 0, 0);
-    getInputStream().read(bytes);
-    bytes;
-  }
-
-  final def bytes2Hex(bytes: Array[Byte]): String =
-    Hex.encodeHexString(bytes);
-
-  def calculateLength(): Long;
+case class Blob(streamSource: InputStreamSource, length: Long, mimeType: MimeType, digest: Array[Byte]) {
+  def getInputStream(): InputStream = streamSource.getInputStream();
 }
 
 object Blob {
-  def fromFile(file: File) = new Blob {
-    override def getInputStream = new FileInputStream(file);
+  def fromInputStreamSource(iss: InputStreamSource, length: Long) = {
+    new Blob(iss,
+      length,
+      MimeType.guessMimeType(iss),
+      CodecUtils.md5(iss));
+  }
 
-    override def calculateLength = file.length();
+  def fromFile(file: File) = {
+    fromInputStreamSource(new InputStreamSource() {
+      override def getInputStream(): InputStream = new FileInputStream(file)
+    },
+      file.length());
   }
 
   val NEO_BLOB_TYPE = new NeoBlobType();
@@ -64,20 +57,14 @@ trait WithRecord {
   def setRecord(record: RecordAccess.RecordProxy[_, _]): Unit;
 }
 
-class BlobValue(val blob: Blob, val length: Long, val first8Bytes: Array[Byte]) extends ScalarValue with WithRecord {
-  lazy val digest = blob.calculateDigest();
-
+class BlobValue(val blob: Blob) extends ScalarValue with WithRecord {
   var _record: RecordAccess.RecordProxy[_, _] = _;
-
-  def this(blob: Blob) {
-    this(blob, blob.calculateLength(), blob.calculateFirst8Bytes());
-  }
 
   def setRecord(record: RecordAccess.RecordProxy[_, _]) = _record = record;
 
   override def getRecord = _record;
 
-  override def unsafeCompareTo(value: Value): Int = length.compareTo(value.asInstanceOf[BlobValue].length)
+  override def unsafeCompareTo(value: Value): Int = blob.length.compareTo(value.asInstanceOf[BlobValue].blob.length)
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
     val conf = valueWriter._get("stringAllocator.idGenerator.source.configuration").asInstanceOf[Config];
@@ -92,17 +79,19 @@ class BlobValue(val blob: Blob, val length: Long, val first8Bytes: Array[Byte]) 
   override def numberType(): NumberType = NumberType.NO_NUMBER;
 
   override def prettyPrint(): String = {
-    s"(blob,length=$length,digest=$digest)"
+    val length = blob.length;
+    val mimeType = blob.mimeType.text;
+    s"(blob,length=$length, mimeType=$mimeType)"
   }
 
   override def equals(value: Value): Boolean =
     value.isInstanceOf[BlobValue] &&
-      this.length.equals(value.asInstanceOf[BlobValue].length) &&
-      this.first8Bytes.equals(value.asInstanceOf[BlobValue].first8Bytes) &&
-      this.digest.equals(value.asInstanceOf[BlobValue].digest);
+      this.blob.length.equals(value.asInstanceOf[BlobValue].blob.length) &&
+      this.blob.mimeType.code.equals(value.asInstanceOf[BlobValue].blob.mimeType.code) &&
+      this.blob.digest.equals(value.asInstanceOf[BlobValue].blob.digest);
 
   override def computeHash(): Int = {
-    digest.hashCode;
+    blob.digest.hashCode;
   }
 
   //TODO: map()

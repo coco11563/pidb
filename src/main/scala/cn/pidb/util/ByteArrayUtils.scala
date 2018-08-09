@@ -1,5 +1,7 @@
 package cn.pidb.util
 
+import org.neo4j.values.storable.InputStreamSource
+
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -47,5 +49,13 @@ object ByteArrayUtils {
     }
 
     longArray.toArray;
+  }
+
+  def fetchBytes(iss: InputStreamSource, n: Int): Array[Byte] = {
+    val bytes: Array[Byte] = new Array[Byte](n).map(x => 0.toByte);
+    val is = iss.getInputStream();
+    is.read(bytes);
+    is.close();
+    bytes;
   }
 }

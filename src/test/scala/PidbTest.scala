@@ -4,8 +4,6 @@ import cn.pidb.func.BlobFunctions
 import eu.medsea.mimeutil.MimeUtil
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.junit.{Assert, Test}
-import org.neo4j.cypher
-import org.neo4j.cypher.internal.frontend.v2_3.SemanticError
 import org.neo4j.graphdb.factory.GraphDatabaseFactory
 import org.neo4j.graphdb.{GraphDatabaseService, Node}
 import org.neo4j.kernel.impl.proc.Procedures
@@ -33,9 +31,6 @@ class PidbTest {
 
   @Test
   def testProperty(): Unit = {
-    MimeUtil.registerMimeDetector("eu.medsea.mimeutil.detector.MagicMimeMimeDetector");
-    MimeUtil.getMimeTypes("")
-
     FileUtils.deleteDirectory(new File("./testdb"));
     //create a new database
     if (true) {
