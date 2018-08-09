@@ -1,33 +1,14 @@
 import java.io.{File, FileInputStream}
 
-import cn.pidb.func.BlobFunctions
-import eu.medsea.mimeutil.MimeUtil
+import cn.pidb.engine.PidbEngine
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.junit.{Assert, Test}
-import org.neo4j.graphdb.factory.GraphDatabaseFactory
-import org.neo4j.graphdb.{GraphDatabaseService, Node}
-import org.neo4j.kernel.impl.proc.Procedures
-import org.neo4j.kernel.internal.GraphDatabaseAPI
+import org.neo4j.graphdb.Node
 import org.neo4j.values.storable.Blob
 
 class PidbTest {
 
-  def openDatabase() = {
-    val db = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(new File("./testdb"))
-      .loadPropertiesFromFile("./neo4j.properties").newGraphDatabase();
-    registerProcedure(db, classOf[BlobFunctions]);
-    db;
-  }
-
-  //TODO: embed it in PiDB?
-  private def registerProcedure(db: GraphDatabaseService, procedures: Class[_]*) {
-    val proceduresService = db.asInstanceOf[GraphDatabaseAPI].getDependencyResolver().resolveDependency(classOf[Procedures]);
-
-    for (procedure <- procedures) {
-      proceduresService.registerProcedure(procedure);
-      proceduresService.registerFunction(procedure);
-    }
-  }
+  def openDatabase() = PidbEngine.openDatabase(new File("./testdb"), "./neo4j.properties");
 
   @Test
   def testProperty(): Unit = {
