@@ -30,5 +30,4 @@ object PidbEngine {
       proceduresService.registerFunction(procedure);
     }
   }
-
 }

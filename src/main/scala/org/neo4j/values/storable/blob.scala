@@ -2,14 +2,13 @@ package org.neo4j.values.storable
 
 import java.io.{File, FileInputStream, InputStream}
 
-import cn.pidb.engine.{BlobUtils, MimeType}
-import cn.pidb.util.CodecUtils
+import cn.pidb.engine.BlobUtils
 import cn.pidb.util.ReflectUtils._
+import cn.pidb.util.{CodecUtils, MimeType}
 import org.neo4j.cypher.internal.util.v3_4.symbols._
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.store.record.PropertyBlock
-import org.neo4j.kernel.impl.transaction.state.RecordAccess
 import org.neo4j.values.ValueMapper
 
 trait InputStreamSource {
@@ -48,22 +47,7 @@ class CypherBlobType extends CypherType {
   override def toNeoTypeString = "BLOB?"
 }
 
-/**
-  * this trait helps attach the Record to a property value
-  */
-trait WithRecord {
-  def getRecord(): RecordAccess.RecordProxy[_, _];
-
-  def setRecord(record: RecordAccess.RecordProxy[_, _]): Unit;
-}
-
-class BlobValue(val blob: Blob) extends ScalarValue with WithRecord {
-  var _record: RecordAccess.RecordProxy[_, _] = _;
-
-  def setRecord(record: RecordAccess.RecordProxy[_, _]) = _record = record;
-
-  override def getRecord = _record;
-
+class BlobValue(val blob: Blob) extends ScalarValue {
   override def unsafeCompareTo(value: Value): Int = blob.length.compareTo(value.asInstanceOf[BlobValue].blob.length)
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
@@ -95,5 +79,5 @@ class BlobValue(val blob: Blob) extends ScalarValue with WithRecord {
   }
 
   //TODO: map()
-  override def map[T](valueMapper: ValueMapper[T]): T = blob.asInstanceOf[T];
+  override def map[T](valueMapper: ValueMapper[T]): T = this.blob.asInstanceOf[T];
 }

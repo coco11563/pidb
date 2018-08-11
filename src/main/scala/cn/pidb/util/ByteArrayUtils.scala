@@ -35,14 +35,15 @@ object ByteArrayUtils {
     var i = 0;
     val len = withPadding.length;
     while (i < len) {
-      val longValue = ((withPadding(0) & 0xff) << 56) |
-        ((withPadding(i + 1) & 0xff) << 48) |
-        ((withPadding(i + 2) & 0xff) << 40) |
-        ((withPadding(i + 3) & 0xff) << 32) |
-        ((withPadding(i + 4) & 0xff) << 24) |
-        ((withPadding(i + 5) & 0xff) << 16) |
-        ((withPadding(i + 6) & 0xff) << 8) |
-        ((withPadding(i + 7) & 0xff) << 0);
+      val longValue = 0L |
+        ((withPadding(i + 0) & 0xff).toLong << 56) |
+        ((withPadding(i + 1) & 0xff).toLong << 48) |
+        ((withPadding(i + 2) & 0xff).toLong << 40) |
+        ((withPadding(i + 3) & 0xff).toLong << 32) |
+        ((withPadding(i + 4) & 0xff).toLong << 24) |
+        ((withPadding(i + 5) & 0xff).toLong << 16) |
+        ((withPadding(i + 6) & 0xff).toLong << 8) |
+        ((withPadding(i + 7) & 0xff).toLong << 0);
 
       i += 8;
       longArray += longValue;

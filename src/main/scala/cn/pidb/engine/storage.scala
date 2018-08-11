@@ -12,6 +12,8 @@ import scala.collection.mutable.{Map => MMap}
 trait BlobStorage {
   def save(bid: String, iss: InputStreamSource);
 
+  def exists(bid: String): Boolean;
+
   def configure(conf: Config): Unit;
 
   def load(bid: String): InputStreamSource;
@@ -60,4 +62,6 @@ class FileBlobStorage extends BlobStorage with Logging {
 
     blobDir.mkdirs();
   }
+
+  override def exists(bid: String): Boolean = new File(blobDir, "blob." + bid).exists();
 }
