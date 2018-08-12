@@ -43,9 +43,11 @@ class BlobIOTest {
     val tx2 = db2.beginTx();
 
     //get first node
-    val v: Node = db2.getAllNodes().iterator().next();
-    println(v);
-    val blob = v.getProperty("photo").asInstanceOf[Blob];
+    val it = db2.getAllNodes().iterator();
+    val v1: Node = it.next();
+    val v2: Node = it.next();
+
+    val blob = v1.getProperty("photo").asInstanceOf[Blob];
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       IOUtils.toByteArray(blob.getInputStream()));
@@ -62,9 +64,11 @@ class BlobIOTest {
       IOUtils.toByteArray(blob3.getInputStream()));
 
     //delete one
-    v.removeProperty("photo");
+    v1.removeProperty("photo");
+    v2.delete();
 
     tx2.success();
+    tx2.close();
     db2.shutdown();
   }
 }

@@ -21,7 +21,10 @@ package org.neo4j.kernel.impl.store;
 
 import cn.pidb.engine.BlobUtils;
 import org.neo4j.kernel.impl.store.format.standard.PropertyRecordFormat;
+import org.neo4j.kernel.impl.store.record.PrimitiveRecord;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
+import org.neo4j.kernel.impl.store.record.PropertyRecord;
+import org.neo4j.kernel.impl.transaction.state.RecordAccess;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
@@ -192,6 +195,10 @@ public enum PropertyType {
         public int calculateNumberOfBlocksUsed(long firstBlock) {
             return 4;
         }
+
+        public void onPropertyDelete(RecordAccess.RecordProxy<?, Void> primitiveProxy, int propertyKey, RecordAccess<PropertyRecord, PrimitiveRecord> propertyRecords, PropertyBlock block) {
+            BlobUtils.onPropertyDelete(primitiveProxy, propertyKey, propertyRecords, block);
+        }
     };
 
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
@@ -297,4 +304,10 @@ public enum PropertyType {
     public byte[] readDynamicRecordHeader(byte[] recordBytes) {
         throw new UnsupportedOperationException();
     }
+
+    ////NOTE: added by pidb
+    public void onPropertyDelete(RecordAccess.RecordProxy<?, Void> primitiveProxy, int propertyKey, RecordAccess<PropertyRecord, PrimitiveRecord> propertyRecords, PropertyBlock block) {
+        //do nothing
+    }
+    ////
 }

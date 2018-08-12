@@ -4,8 +4,10 @@ import cn.pidb.util.ReflectUtils._
 import cn.pidb.util.{ByteArrayUtils, CodecUtils, Logging, MimeType}
 import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.newapi.DefaultPropertyCursor
-import org.neo4j.kernel.impl.store.record.PropertyBlock
+import org.neo4j.kernel.impl.store.record.{PrimitiveRecord, PropertyBlock, PropertyRecord}
 import org.neo4j.kernel.impl.store.{PropertyStore, PropertyType}
+import org.neo4j.kernel.impl.transaction.state.RecordAccess
+import org.neo4j.kernel.impl.transaction.state.RecordAccess.RecordProxy
 import org.neo4j.values.storable._
 
 /**
@@ -33,7 +35,7 @@ object BlobUtils extends Logging {
     values(2) = digest(0);
     values(3) = digest(1);
 
-    val storage: BlobStorage = BlobStorage.get(conf);
+    val storage: BlobStorage = conf.getRuntimeContext[BlobStorage]();
     val bid: String = makeBlobId(blob.length, blob.digest);
     if (!storage.exists(bid)) {
       storage.save(bid, blob.streamSource)
@@ -54,12 +56,24 @@ object BlobUtils extends Logging {
     val length = values(1) >> 16;
     val mimeType = values(1) & 0xFFFFL;
 
-    val iss: InputStreamSource = BlobStorage.get(conf).load(makeBlobId(length, digest));
+    val storage: BlobStorage = conf.getRuntimeContext[BlobStorage]();
+    val iss: InputStreamSource = storage.load(makeBlobId(length, digest));
     val blob = new Blob(iss, length, MimeType.fromCode(mimeType), digest);
     new BlobValue(blob);
   }
 
   def readBlobValue(block: PropertyBlock, store: PropertyStore, conf: Config): BlobValue = {
     readBlobValue(block.getValueBlocks(), conf);
+  }
+
+  def onPropertyDelete(primitiveProxy: RecordProxy[_, Void], propertyKey: Int, propertyRecords: RecordAccess[PropertyRecord, PrimitiveRecord], block: PropertyBlock): Unit = {
+    val values = block.getValueBlocks;
+    val length = values(1) >> 16;
+    val digest = ByteArrayUtils.convertLongArray2ByteArray(Array(values(2), values(3)));
+    val conf = propertyRecords._get("loader.val$store.configuration").asInstanceOf[Config];
+    val bid = makeBlobId(length, digest);
+
+    //TODO: delete blob?
+    logger.debug(s"deleting blob: $bid");
   }
 }
