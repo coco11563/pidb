@@ -3,8 +3,8 @@ package org.neo4j.values.storable
 import java.io.{File, FileInputStream, InputStream}
 
 import cn.pidb.engine.BlobUtils
+import cn.pidb.util.MimeType
 import cn.pidb.util.ReflectUtils._
-import cn.pidb.util.{CodecUtils, MimeType}
 import org.neo4j.cypher.internal.util.v3_4.symbols._
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.kernel.configuration.Config
@@ -15,23 +15,23 @@ trait InputStreamSource {
   def getInputStream(): InputStream;
 }
 
-case class Blob(streamSource: InputStreamSource, length: Long, mimeType: MimeType, digest: Array[Byte]) {
+case class Blob(streamSource: InputStreamSource, length: Long, mimeType: MimeType) {
   def getInputStream(): InputStream = streamSource.getInputStream();
 }
 
 object Blob {
-  def fromInputStreamSource(iss: InputStreamSource, length: Long) = {
+  def fromInputStreamSource(iss: InputStreamSource, length: Long, mimeType: Option[MimeType] = None) = {
     new Blob(iss,
       length,
-      MimeType.guessMimeType(iss),
-      CodecUtils.md5(iss));
+      mimeType.getOrElse(MimeType.guessMimeType(iss)));
   }
 
-  def fromFile(file: File) = {
+  def fromFile(file: File, mimeType: Option[MimeType] = None) = {
     fromInputStreamSource(new InputStreamSource() {
       override def getInputStream(): InputStream = new FileInputStream(file)
     },
-      file.length());
+      file.length(),
+      mimeType);
   }
 
   val NEO_BLOB_TYPE = new NeoBlobType();
@@ -71,11 +71,10 @@ class BlobValue(val blob: Blob) extends ScalarValue {
   override def equals(value: Value): Boolean =
     value.isInstanceOf[BlobValue] &&
       this.blob.length.equals(value.asInstanceOf[BlobValue].blob.length) &&
-      this.blob.mimeType.code.equals(value.asInstanceOf[BlobValue].blob.mimeType.code) &&
-      this.blob.digest.equals(value.asInstanceOf[BlobValue].blob.digest);
+      this.blob.mimeType.code.equals(value.asInstanceOf[BlobValue].blob.mimeType.code);
 
   override def computeHash(): Int = {
-    blob.digest.hashCode;
+    blob.hashCode;
   }
 
   //TODO: map()

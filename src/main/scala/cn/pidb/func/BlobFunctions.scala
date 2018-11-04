@@ -50,12 +50,6 @@ class BlobFunctions {
   def getMinorMimeType(@Name("blob") blob: Object): String = {
     blob.asInstanceOf[Blob].mimeType.text.split("/")(1);
   }
-
-  @UserFunction("Blob.digest")
-  @Description("get digest of a blob object")
-  def getDigest(@Name("blob") blob: Object): String = {
-    CodecUtils.encodeHexString(blob.asInstanceOf[Blob].digest);
-  }
 }
 
 class CypherFunctionException(msg: String) extends RuntimeException(msg) {
