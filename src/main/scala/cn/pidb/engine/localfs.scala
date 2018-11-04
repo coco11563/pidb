@@ -1,12 +1,13 @@
 package cn.pidb.engine
 
-import java.io.{InputStream, FileInputStream, FileOutputStream, File}
+import java.io.{File, FileInputStream, FileOutputStream, InputStream}
+
 import cn.pidb.util.ConfigEx._
 import cn.pidb.util.StreamUtils._
-import cn.pidb.util.{MimeType, Logging}
+import cn.pidb.util.{Logging, MimeType}
 import org.apache.commons.io.IOUtils
 import org.neo4j.kernel.configuration.Config
-import org.neo4j.values.storable.{InputStreamSource, Blob}
+import org.neo4j.values.storable.{Blob, InputStreamSource}
 
 class FileBlobStorage extends BlobStorage with Logging {
   var _blobDir: File = _;
@@ -14,15 +15,16 @@ class FileBlobStorage extends BlobStorage with Logging {
   override def save(bid: BlobId, blob: Blob): Unit = {
     val file = fileLocation(bid);
     file.getParentFile.mkdirs();
-    //save blobs as files in buffer
+
     val fos = new FileOutputStream(file);
     bid.toLongArray().foreach(fos.writeLong(_));
     fos.writeLong(blob.mimeType.code);
     fos.writeLong(blob.length);
-    val bis = blob.getInputStream();
-    IOUtils.copy(bis, fos);
+
+    blob.offerStream { bis =>
+      IOUtils.copy(bis, fos);
+    }
     fos.close();
-    bis.close();
   }
 
   private def fileLocation(bid: BlobId): File = {
@@ -38,11 +40,13 @@ class FileBlobStorage extends BlobStorage with Logging {
     fis.close();
 
     val blob = new Blob(new InputStreamSource() {
-      def getInputStream(): InputStream = {
+      def offerStream[T](consume: (InputStream) => T): T = {
         val is = new FileInputStream(blobFile);
         //NOTE: skip
         is.skip(8 * 4);
-        is;
+        val t = consume(is);
+        is.close();
+        t;
       }
     }, length, mimeType);
 
@@ -55,7 +59,7 @@ class FileBlobStorage extends BlobStorage with Logging {
 
   override def connect(conf: Config): Unit = {
     val baseDir: File = new File(conf.getRaw("unsupported.dbms.directories.neo4j_home").get());
-    _blobDir = conf.getAsFile("blob.storage.file.dir", baseDir, new File(baseDir, "/blob/storage"));
+    _blobDir = conf.getAsFile("blob.storage.file.dir", baseDir, new File(baseDir, "/blob"));
 
     _blobDir.mkdirs();
     logger.info(s"using storage dir: ${_blobDir.getCanonicalPath}");

@@ -1,21 +1,21 @@
 package cn.pidb.engine
 
 import java.io.{ByteArrayInputStream, InputStream}
+
 import cn.pidb.util.ConfigEx._
-import cn.pidb.util.StreamUtils._
 import cn.pidb.util.{ByteArrayUtils, Logging}
 import org.apache.commons.io.IOUtils
-import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableName, HBaseConfiguration}
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, Put, HTable}
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, HTable, Put}
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
 import org.neo4j.kernel.configuration.Config
-import org.neo4j.values.storable.{InputStreamSource, Blob}
+import org.neo4j.values.storable.{Blob, InputStreamSource}
 
 class HbaseBlobStorage extends BlobStorage with Logging {
   var _table: HTable = _;
 
   override def save(bid: BlobId, blob: Blob): Unit = {
-    Some(blob.getInputStream()).foreach { is =>
+    blob.offerStream { is =>
       val put = new Put(getRowKey(bid));
       put.addColumn(Bytes.toBytes(""), Bytes.toBytes("CONTENT"), IOUtils.toByteArray(is));
       put.addColumn(Bytes.toBytes(""), Bytes.toBytes("CONTENT_LENGTH"), ByteArrayUtils.covertLong2ByteArray(blob.length));
@@ -24,7 +24,6 @@ class HbaseBlobStorage extends BlobStorage with Logging {
       put.addColumn(Bytes.toBytes(""), Bytes.toBytes("MIMETYPE_MAJOR"), blob.mimeType.major.getBytes("utf-8"));
       put.addColumn(Bytes.toBytes(""), Bytes.toBytes("MIMETYPE_MINOR"), blob.mimeType.minor.getBytes("utf-8"));
       _table.put(put);
-      is.close();
     }
   }
 
@@ -32,8 +31,11 @@ class HbaseBlobStorage extends BlobStorage with Logging {
     val get = new Get(getRowKey(bid));
     val value = _table.get(get).getValueAsByteBuffer(Bytes.toBytes(""), Bytes.toBytes("CONTENT"));
     new InputStreamSource() {
-      override def getInputStream(): InputStream = {
-        new ByteArrayInputStream(value.array());
+      override def offerStream[T](consume: (InputStream) => T): T = {
+        val bais = new ByteArrayInputStream(value.array());
+        val t = consume(bais);
+        bais.close();
+        t;
       }
     }
   }

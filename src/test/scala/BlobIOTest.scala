@@ -50,18 +50,24 @@ class BlobIOTest {
     val blob = v1.getProperty("photo").asInstanceOf[Blob];
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
-      IOUtils.toByteArray(blob.getInputStream()));
+      blob.offerStream {
+        IOUtils.toByteArray(_)
+      });
 
     //cypher query
     val blob1 = db2.execute("match (n) where n.name='bob' return n.photo").next().get("n.photo").asInstanceOf[Blob];
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
-      IOUtils.toByteArray(blob1.getInputStream()));
+      blob1.offerStream {
+        IOUtils.toByteArray(_)
+      });
 
     val blob3 = db2.execute("match (n) where n.name='alex' return n.photo").next().get("n.photo").asInstanceOf[Blob];
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
-      IOUtils.toByteArray(blob3.getInputStream()));
+      blob3.offerStream {
+        IOUtils.toByteArray(_)
+      });
 
     //delete one
     v1.removeProperty("photo");

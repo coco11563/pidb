@@ -12,11 +12,14 @@ import org.neo4j.kernel.impl.store.record.PropertyBlock
 import org.neo4j.values.ValueMapper
 
 trait InputStreamSource {
-  def getInputStream(): InputStream;
+  /**
+    * note close input stream after consuming
+    */
+  def offerStream[T](consume: (InputStream) => T): T;
 }
 
 case class Blob(streamSource: InputStreamSource, length: Long, mimeType: MimeType) {
-  def getInputStream(): InputStream = streamSource.getInputStream();
+  def offerStream[T](consume: (InputStream) => T): T = streamSource.offerStream(consume);
 }
 
 object Blob {
@@ -28,7 +31,12 @@ object Blob {
 
   def fromFile(file: File, mimeType: Option[MimeType] = None) = {
     fromInputStreamSource(new InputStreamSource() {
-      override def getInputStream(): InputStream = new FileInputStream(file)
+      override def offerStream[T](consume: (InputStream) => T): T = {
+        val fis = new FileInputStream(file);
+        val t = consume(fis);
+        fis.close();
+        t;
+      }
     },
       file.length(),
       mimeType);

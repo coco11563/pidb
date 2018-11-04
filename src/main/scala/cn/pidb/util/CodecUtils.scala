@@ -22,10 +22,9 @@ object CodecUtils {
     md5.digest(is);
 
   def md5(iss: InputStreamSource): Array[Byte] = {
-    val is = iss.getInputStream();
-    val digest = md5(is);
-    is.close();
-    digest;
+     iss.offerStream { is =>
+     md5(is);
+   }
   }
 
   def md5AsHex(is: InputStream): String =

@@ -13,6 +13,7 @@ import scala.collection.JavaConversions._
   */
 case class MimeType(code: Long, text: String) {
   def major = text.split("/")(0);
+
   def minor = text.split("/")(1);
 }
 
@@ -32,9 +33,10 @@ object MimeType {
   def fromCode(code: Long) = new MimeType(code, code2Types(code));
 
   def guessMimeType(iss: InputStreamSource): MimeType = {
-    val is = iss.getInputStream();
-    val mimeTypes = MimeUtil.getMimeTypes(IOUtils.toByteArray(is));
-    is.close();
+    val mimeTypes = iss.offerStream { is =>
+      MimeUtil.getMimeTypes(IOUtils.toByteArray(is))
+    };
+
     fromText(mimeTypes.iterator().next().asInstanceOf[eu.medsea.mimeutil.MimeType].toString);
   }
 }
