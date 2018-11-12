@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import java.{lang, util}
 
 import cn.pidb.func.BlobFunctions
+import cn.pidb.util.Logging
 import cn.pidb.util.ReflectUtils._
 import org.neo4j.graphdb._
 import org.neo4j.graphdb.event.{KernelEventHandler, TransactionEventHandler}
@@ -12,7 +13,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory
 import org.neo4j.graphdb.index.IndexManager
 import org.neo4j.graphdb.schema.Schema
 import org.neo4j.graphdb.traversal.{BidirectionalTraversalDescription, TraversalDescription}
-import org.neo4j.kernel.configuration.Config
+import org.neo4j.kernel.configuration.{BoltConnector, Config}
 import org.neo4j.kernel.impl.factory.{GraphDatabaseFacade, PlatformModule}
 import org.neo4j.kernel.impl.proc.Procedures
 import org.neo4j.kernel.internal.GraphDatabaseAPI
@@ -20,17 +21,40 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI
 /**
   * Created by bluejoe on 2018/8/9.
   */
-object PidbEngine {
+object PidbEngine extends Logging {
 
-  def openDatabase(dbDir: File, propertiesFilePath: String = ""): GraphDatabaseService = {
+  def startServer(dbDir: File, propertiesFilePath: String, boltUrl: String = "localhost:8687"): GraphDatabaseService = {
+    val db = _openDatabase(dbDir, Some(propertiesFilePath), Some(boltUrl));
+    logger.info(s"start pidb as server on $boltUrl");
+    db;
+  }
+
+  def openDatabase(dbDir: File, propertiesFilePath: String): GraphDatabaseService = {
+    _openDatabase(dbDir, Some(propertiesFilePath));
+  }
+
+  def connect(url: String = "bolt://localhost:8687", user: String = "", pass: String = "") = {
+    new PidbClient(url, user, pass);
+  }
+
+  private def _openDatabase(dbDir: File, propertiesFilePath: Option[String] = None, boltUrl: Option[String] = None): GraphDatabaseService = {
     val builder = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(dbDir);
-    if (!propertiesFilePath.isEmpty)
-      builder.loadPropertiesFromFile(propertiesFilePath);
+    if (boltUrl.isDefined) {
+      val bolt = new BoltConnector("0");
+
+      builder.setConfig(bolt.`type`, "BOLT")
+        .setConfig(bolt.enabled, "true")
+        .setConfig(bolt.address, boltUrl.get);
+    }
+
+    if (propertiesFilePath.isDefined)
+      builder.loadPropertiesFromFile(propertiesFilePath.get);
 
     val db = builder.newGraphDatabase();
     val facade = db.asInstanceOf[GraphDatabaseFacade];
     val platform = facade._get("spi.platform").asInstanceOf[PlatformModule];
     val conf: Config = platform.config;
+
     //init BlobStorage
     val storage = BlobStorage.create(conf);
     conf.putRuntimeContext[BlobStorage](storage);

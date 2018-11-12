@@ -6,37 +6,13 @@ import org.junit.{Assert, Test}
 import org.neo4j.graphdb.Node
 import org.neo4j.values.storable.Blob
 
-class BlobIOTest {
+class LocalPidbTest extends TestBase {
 
   def openDatabase() = PidbEngine.openDatabase(new File("./testdb"), "./neo4j.properties");
 
-  private def createNewDB(): Unit = {
-    FileUtils.deleteDirectory(new File("./testdb"));
-    //create a new database
-    if (true) {
-      val db = openDatabase();
-
-      val tx = db.beginTx();
-      //create a node
-      val node1 = db.createNode();
-      node1.setProperty("name", "bob");
-      //with a blob property
-      node1.setProperty("photo", Blob.fromFile(new File("./test.png")));
-
-      val node2 = db.createNode();
-      node2.setProperty("name", "alex");
-      //with a blob property
-      node2.setProperty("photo", Blob.fromFile(new File("./test1.png")));
-
-      tx.success();
-      tx.close();
-      db.shutdown();
-    }
-  }
-
   @Test
   def testProperty(): Unit = {
-    createNewDB();
+    setupNewDatabase();
 
     //reload database
     val db2 = openDatabase();

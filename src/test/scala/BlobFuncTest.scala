@@ -36,7 +36,6 @@ class BlobFuncTest {
       match (n) where n.name='yahoo'
       return Blob.len(n.photo) as len,
       Blob.mime(n.photo) as mimetype,
-      Blob.digest(n.photo) as digest,
       Blob.mime1(n.photo) as majormime,
       Blob.mime2(n.photo) as minormime
       """).next();
@@ -46,11 +45,9 @@ class BlobFuncTest {
     Assert.assertEquals("image", result.get("majormime").asInstanceOf[String]);
     Assert.assertEquals("jpeg", result.get("minormime").asInstanceOf[String]);
     val digestHex = CodecUtils.md5AsHex(new FileInputStream(new File("./test2.jpg")));
-    Assert.assertEquals(digestHex, result.get("digest").asInstanceOf[String]);
 
     Assert.assertEquals(1, db.execute("match (n) where Blob.mime(n.photo)='image/png' return n").stream().count());
     Assert.assertEquals(2, db.execute("match (n) where Blob.mime1(n.photo)='image' return n").stream().count());
-    Assert.assertEquals(1, db.execute(s"match (n) where Blob.digest(n.photo)='$digestHex' return n").stream().count());
 
     tx.success();
     tx.close();
