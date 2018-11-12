@@ -7,9 +7,6 @@ import org.neo4j.graphdb.Node
 import org.neo4j.values.storable.Blob
 
 class LocalPidbTest extends TestBase {
-
-  def openDatabase() = PidbEngine.openDatabase(new File("./testdb"), "./neo4j.properties");
-
   @Test
   def testProperty(): Unit = {
     setupNewDatabase();

@@ -5,12 +5,14 @@ import org.apache.commons.io.FileUtils
 import org.neo4j.values.storable.Blob
 
 class TestBase {
+  def openDatabase() =
+    PidbEngine.openDatabase(new File("./testdb"), "./neo4j.properties");
+
   def setupNewDatabase(): Unit = {
     FileUtils.deleteDirectory(new File("./testdb"));
     //create a new database
     if (true) {
-      val db = PidbEngine.openDatabase(new File("./testdb"), "./neo4j.properties");
-
+      val db = openDatabase();
       val tx = db.beginTx();
       //create a node
       val node1 = db.createNode();
