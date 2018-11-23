@@ -19,7 +19,7 @@
  */
 package org.neo4j.kernel.impl.store;
 
-import cn.pidb.engine.BlobUtils;
+import cn.pidb.engine.BlobSupport;
 import org.neo4j.kernel.impl.store.format.standard.PropertyRecordFormat;
 import org.neo4j.kernel.impl.store.record.PrimitiveRecord;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
@@ -188,7 +188,7 @@ public enum PropertyType {
     BLOB(15) {
         @Override
         public Value value(PropertyBlock block, PropertyStore store) {
-            return BlobUtils.readBlobValue(block, store, store.configuration);
+            return BlobSupport.readBlobValue(block, store, store.configuration);
         }
 
         @Override
@@ -197,7 +197,7 @@ public enum PropertyType {
         }
 
         public void onPropertyDelete(RecordAccess.RecordProxy<?, Void> primitiveProxy, int propertyKey, RecordAccess<PropertyRecord, PrimitiveRecord> propertyRecords, PropertyBlock block) {
-            BlobUtils.onPropertyDelete(primitiveProxy, propertyKey, propertyRecords, block);
+            BlobSupport.onPropertyDelete(primitiveProxy, propertyKey, propertyRecords, block);
         }
     };
 

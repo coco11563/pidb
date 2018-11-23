@@ -9,7 +9,7 @@ import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, HTable, Put}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
 import org.neo4j.kernel.configuration.Config
-import org.neo4j.values.storable.{Blob, InputStreamSource}
+import org.neo4j.values.storable.{Blob,  InputStreamSource}
 
 class HbaseBlobStorage extends BlobStorage with Logging {
   var _table: HTable = _;
@@ -60,7 +60,7 @@ class HbaseBlobStorage extends BlobStorage with Logging {
     _table = conn.getTable(tableName).asInstanceOf[HTable];
   }
 
-  private def getRowKey(bid: BlobId) = bid.toByteArray();
+  private def getRowKey(bid: BlobId) = bid.asByteArray();
 
   override def exists(bid: BlobId): Boolean = {
     val get = new Get(getRowKey(bid));

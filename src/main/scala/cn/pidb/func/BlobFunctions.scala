@@ -4,7 +4,7 @@ import java.io.File
 
 import cn.pidb.util.CodecUtils
 import org.neo4j.procedure.{Description, Name, UserFunction}
-import org.neo4j.values.storable.Blob
+import org.neo4j.values.storable.{Blob}
 
 /**
   * Created by bluejoe on 2018/7/22.

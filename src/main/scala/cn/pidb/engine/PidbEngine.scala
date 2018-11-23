@@ -3,13 +3,18 @@ package cn.pidb.engine
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.{lang, util}
+import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import cn.pidb.func.BlobFunctions
+import cn.pidb.util.ConfigEx._
 import cn.pidb.util.Logging
 import cn.pidb.util.ReflectUtils._
+import org.apache.commons.io.IOUtils
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.neo4j.graphdb._
 import org.neo4j.graphdb.event.{KernelEventHandler, TransactionEventHandler}
-import org.neo4j.graphdb.factory.GraphDatabaseFactory
+import org.neo4j.graphdb.factory.{GraphDatabaseBuilder, GraphDatabaseFactory}
 import org.neo4j.graphdb.index.IndexManager
 import org.neo4j.graphdb.schema.Schema
 import org.neo4j.graphdb.traversal.{BidirectionalTraversalDescription, TraversalDescription}
@@ -22,33 +27,48 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI
   * Created by bluejoe on 2018/8/9.
   */
 object PidbEngine extends Logging {
-
   def startServer(dbDir: File, propertiesFilePath: String, boltUrl: String = "localhost:8687"): GraphDatabaseService = {
-    val db = _openDatabase(dbDir, Some(propertiesFilePath), Some(boltUrl));
-    logger.info(s"start pidb as server on $boltUrl");
-    db;
+    _openDatabase(dbDir, {
+      (builder: GraphDatabaseBuilder) => {
+        builder.loadPropertiesFromFile(propertiesFilePath);
+        logger.info(s"loading configuration from $propertiesFilePath");
+
+        val bolt = new BoltConnector("0");
+        builder.setConfig(bolt.`type`, "BOLT")
+          .setConfig(bolt.enabled, "true")
+          .setConfig(bolt.address, boltUrl);
+      }
+    }, {
+      (conf: Config, db: GraphDatabaseService) => {
+        logger.info(s"start pidb as server on $boltUrl");
+      }
+
+        val httpPort = conf.getValueAsInt("blob.http.port", 1224);
+        val servletPath = conf.getValueAsString("blob.http.servletPath", "/blob");
+        BlobServer.startupBlobServer(httpPort, servletPath);
+
+        //set url
+        val hostName = conf.getValueAsString("blob.http.host", "localhost");
+        val httpUrl = s"http://$hostName:${httpPort}$servletPath";
+
+        conf.putRuntimeContext("blob.http.connector_url", httpUrl);
+    });
   }
 
   def openDatabase(dbDir: File, propertiesFilePath: String): GraphDatabaseService = {
-    _openDatabase(dbDir, Some(propertiesFilePath));
+    _openDatabase(dbDir, (builder: GraphDatabaseBuilder) => {
+      builder.loadPropertiesFromFile(propertiesFilePath);
+      logger.info(s"loading configuration from $propertiesFilePath");
+    }, (Config, GraphDatabaseService) =>{});
   }
 
   def connect(url: String = "bolt://localhost:8687", user: String = "", pass: String = "") = {
     new PidbClient(url, user, pass);
   }
 
-  private def _openDatabase(dbDir: File, propertiesFilePath: Option[String] = None, boltUrl: Option[String] = None): GraphDatabaseService = {
+  private def _openDatabase(dbDir: File, configModifer: (GraphDatabaseBuilder) => Unit, afterCreate: (Config, GraphDatabaseService) => Unit): GraphDatabaseService = {
     val builder = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(dbDir);
-    if (boltUrl.isDefined) {
-      val bolt = new BoltConnector("0");
-
-      builder.setConfig(bolt.`type`, "BOLT")
-        .setConfig(bolt.enabled, "true")
-        .setConfig(bolt.address, boltUrl.get);
-    }
-
-    if (propertiesFilePath.isDefined)
-      builder.loadPropertiesFromFile(propertiesFilePath.get);
+    configModifer(builder);
 
     val db = builder.newGraphDatabase();
     val facade = db.asInstanceOf[GraphDatabaseFacade];
@@ -60,6 +80,8 @@ object PidbEngine extends Logging {
     conf.putRuntimeContext[BlobStorage](storage);
     storage.connect(conf);
     registerProcedure(db, classOf[BlobFunctions]);
+
+    afterCreate(conf, db);
 
     new DelegatedGraphDatabaseService(db) {
       override def shutdown(): Unit = {

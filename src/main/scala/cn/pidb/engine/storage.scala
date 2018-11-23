@@ -8,24 +8,24 @@ import org.neo4j.kernel.configuration.Config
 import org.neo4j.values.storable.{Blob, InputStreamSource}
 
 trait BlobId {
-  def toLongArray(): Array[Long];
+  def asLongArray(): Array[Long];
 
-  def toByteArray(): Array[Byte];
+  def asByteArray(): Array[Byte];
 
-  def toString(): String;
+  def asLiteralString(): String;
 }
 
 object BlobId {
   private def fromUUID(uuid: UUID): BlobId = new BlobId() {
-    def toLongArray(): Array[Long] = {
+    def asLongArray(): Array[Long] = {
       Array[Long](uuid.getMostSignificantBits, uuid.getLeastSignificantBits);
     }
 
-    def toByteArray(): Array[Byte] = {
-      ByteArrayUtils.convertLongArray2ByteArray(toLongArray());
+    def asByteArray(): Array[Byte] = {
+      ByteArrayUtils.convertLongArray2ByteArray(asLongArray());
     }
 
-    override def toString(): String = {
+    override def asLiteralString(): String = {
       uuid.toString;
     }
   }

@@ -33,7 +33,7 @@ import org.neo4j.internal.kernel.api.procs.{DefaultParameterValue, Neo4jTypes}
 import org.neo4j.internal.kernel.api.{IndexReference, InternalIndexState, procs}
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
 import org.neo4j.procedure.Mode
-import org.neo4j.values.storable.Blob
+import org.neo4j.values.storable.{Blob}
 
 import scala.collection.JavaConverters._
 

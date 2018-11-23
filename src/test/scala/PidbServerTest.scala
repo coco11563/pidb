@@ -24,11 +24,20 @@ class PidbServerTest extends TestBase {
         IOUtils.toByteArray(_)
       });
 
-    val blob3 = client.querySingleObject("match (n) where n.name='alex' return n.photo", (result: Record) => {
+    val blob2 = client.querySingleObject("match (n) where n.name='alex' return n.photo", (result: Record) => {
       result.get("n.photo").asInstanceOf[Blob]
     });
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
+      blob2.offerStream {
+        IOUtils.toByteArray(_)
+      });
+
+    val blob3 = client.querySingleObject("return Blob.fromFile('./test.png')", (result: Record) => {
+      result.get(0).asInstanceOf[Blob]
+    });
+
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       blob3.offerStream {
         IOUtils.toByteArray(_)
       });

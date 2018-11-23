@@ -17,7 +17,7 @@ class FileBlobStorage extends BlobStorage with Logging {
     file.getParentFile.mkdirs();
 
     val fos = new FileOutputStream(file);
-    bid.toLongArray().foreach(fos.writeLong(_));
+    bid.asLongArray().foreach(fos.writeLong(_));
     fos.writeLong(blob.mimeType.code);
     fos.writeLong(blob.length);
 
@@ -28,7 +28,7 @@ class FileBlobStorage extends BlobStorage with Logging {
   }
 
   private def fileLocation(bid: BlobId): File = {
-    val idname = bid.toString();
+    val idname = bid.asLiteralString();
     new File(_blobDir, s"${idname.substring(32, 36)}/$idname");
   }
 
@@ -39,7 +39,7 @@ class FileBlobStorage extends BlobStorage with Logging {
     val length = fis.readLong();
     fis.close();
 
-    val blob = new Blob(new InputStreamSource() {
+    val blob = Blob.fromInputStreamSource(new InputStreamSource() {
       def offerStream[T](consume: (InputStream) => T): T = {
         val is = new FileInputStream(blobFile);
         //NOTE: skip
@@ -48,7 +48,7 @@ class FileBlobStorage extends BlobStorage with Logging {
         is.close();
         t;
       }
-    }, length, mimeType);
+    }, length, Some(mimeType));
 
     (blobId, blob);
   }

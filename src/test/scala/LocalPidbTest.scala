@@ -28,14 +28,16 @@ class LocalPidbTest extends TestBase {
       });
 
     //cypher query
-    val blob1 = db2.execute("match (n) where n.name='bob' return n.photo").next().get("n.photo").asInstanceOf[Blob];
+    val blob1 = db2.execute("match (n) where n.name='bob' return n.photo").next()
+      .get("n.photo").asInstanceOf[Blob];
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       blob1.offerStream {
         IOUtils.toByteArray(_)
       });
 
-    val blob3 = db2.execute("match (n) where n.name='alex' return n.photo").next().get("n.photo").asInstanceOf[Blob];
+    val blob3 = db2.execute("match (n) where n.name='alex' return n.photo").next()
+      .get("n.photo").asInstanceOf[Blob];
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
       blob3.offerStream {

@@ -32,7 +32,6 @@ import org.neo4j.procedure.Name;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.Blob;
 import org.neo4j.values.storable.Blob$;
-
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.time.*;
