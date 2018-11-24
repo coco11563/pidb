@@ -4,6 +4,7 @@ import cn.pidb.util.ReflectUtils._
 import cn.pidb.util.{Logging, MimeType}
 import org.neo4j.bolt.v1.packstream.PackOutput
 import org.neo4j.driver.internal.packstream.{PackInput, PackStream}
+import org.neo4j.driver.v1.Value
 import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.newapi.DefaultPropertyCursor
 import org.neo4j.kernel.impl.store.record.{PrimitiveRecord, PropertyBlock, PropertyRecord}
@@ -12,13 +13,15 @@ import org.neo4j.kernel.impl.transaction.state.RecordAccess
 import org.neo4j.kernel.impl.transaction.state.RecordAccess.RecordProxy
 import org.neo4j.values.storable._
 
-import scala.collection.mutable
-
 /**
   * Created by bluejoe on 2018/7/4.
   */
-object BlobSupport extends Logging {
-  val BOLT_VALUE_TYPE_BLOB = PackStream.RESERVED_C4;
+object BlobIO extends Logging {
+  val BOLT_VALUE_TYPE_BLOB_INLINE = PackStream.RESERVED_C5;
+  val BOLT_VALUE_TYPE_BLOB_REMOTE = PackStream.RESERVED_C4;
+  val MAX_INLINE_BLOB_BYTES = 10240;
+
+  //10k
 
   def writeBlobValue(value: BlobValue, valueWriter: ValueWriter[_]) = {
     //create blodid
@@ -28,43 +31,71 @@ object BlobSupport extends Logging {
       _writeBlobIntoStorage(value, blobId, valueWriter);
     }
 
-    if (valueWriter.getClass.getName.endsWith("PackerV1")) {
+    if (valueWriter.getClass.getName.endsWith("PackerV2")) {
       _writeBlobIntoStream(value, blobId, valueWriter);
     }
   }
 
-  def readBlobValueFromBoltStreamIfAvailable(unpacker: PackStream.Unpacker): RemoteBlobValue = {
+  def readBlobValueFromBoltStreamIfAvailable(unpacker: PackStream.Unpacker): Value = {
     val in = unpacker._get("in").asInstanceOf[PackInput];
     val byte = in.peekByte();
-    if (byte == BOLT_VALUE_TYPE_BLOB) {
-      in.readByte();
+    byte match {
+      case BOLT_VALUE_TYPE_BLOB_REMOTE =>
+        in.readByte();
 
-      val values = for (i <- 0 to 3) yield in.readLong();
-      val (bid, length, mt) = _unpackBlobValue(values.toArray);
+        val values = for (i <- 0 to 3) yield in.readLong();
+        val (bid, length, mt) = _unpackBlobValue(values.toArray);
 
-      val lengthUrl = in.readInt();
-      val bs = new Array[Byte](lengthUrl);
-      in.readBytes(bs, 0, lengthUrl);
+        val lengthUrl = in.readInt();
+        val bs = new Array[Byte](lengthUrl);
+        in.readBytes(bs, 0, lengthUrl);
 
-      val url = new String(bs, "utf-8");
-      new RemoteBlobValue(url, bid, length, mt);
-    }
-    else {
-      null;
+        val url = new String(bs, "utf-8");
+        new RemoteBlobValue(url, bid, length, mt);
+
+      case BOLT_VALUE_TYPE_BLOB_INLINE =>
+        in.readByte();
+
+        val values = for (i <- 0 to 3) yield in.readLong();
+        val (bid, length, mt) = _unpackBlobValue(values.toArray);
+
+        //read inline
+        val bs = new Array[Byte](length.toInt);
+        in.readBytes(bs, 0, length.toInt);
+        new InlineBlobValue(bs, bid, length, mt);
+
+      case _ => null;
     }
   }
 
   private def _writeBlobIntoStream(value: BlobValue, blobId: BlobId, valueWriter: ValueWriter[_]) = {
     val out = valueWriter._get("out").asInstanceOf[PackOutput];
-    out.writeByte(BOLT_VALUE_TYPE_BLOB);
-    _wrapBlobValueAsLongArray(value, blobId).foreach(out.writeLong(_));
-    //TODO?
-    val httpConnectorUrl: String = s"http://localhost:1224/blob";
+    val inline = value.blob.length <= MAX_INLINE_BLOB_BYTES;
+    //write marker
+    out.writeByte(if (inline) {
+      BOLT_VALUE_TYPE_BLOB_INLINE
+    }
+    else {
+      BOLT_VALUE_TYPE_BLOB_REMOTE
+    });
 
-    val bs = httpConnectorUrl.getBytes("utf-8");
-    out.writeInt(bs.length);
-    out.writeBytes(bs, 0, bs.length);
-    BlobCacheInSession.put(blobId, value.blob);
+    _wrapBlobValueAsLongArray(value, blobId).foreach(out.writeLong(_));
+
+    //write inline
+    if (inline) {
+      val bytes = value.blob.toByteArray();
+      out.writeBytes(bytes, 0, bytes.length);
+    }
+    else {
+      //write as a HTTP resource
+      //TODO?
+      val httpConnectorUrl: String = s"http://localhost:1224/blob";
+
+      val bs = httpConnectorUrl.getBytes("utf-8");
+      out.writeInt(bs.length);
+      out.writeBytes(bs, 0, bs.length);
+      BlobCacheInSession.put(blobId, value.blob);
+    }
   }
 
   private def _wrapBlobValueAsLongArray(value: BlobValue, blobId: BlobId, keyId: Int = 0): Array[Long] = {

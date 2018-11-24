@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2002-2017 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,26 +18,22 @@
 package org.neo4j.driver.internal.messaging;
 
 import java.io.IOException;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import cn.pidb.engine.BlobSupport;
+import cn.pidb.engine.BlobIO;
 import org.neo4j.driver.internal.InternalNode;
 import org.neo4j.driver.internal.InternalPath;
 import org.neo4j.driver.internal.InternalRelationship;
-import org.neo4j.driver.internal.net.BufferingChunkedInput;
-import org.neo4j.driver.internal.net.ChunkedOutput;
+import org.neo4j.driver.internal.packstream.ByteArrayIncompatiblePacker;
 import org.neo4j.driver.internal.packstream.PackInput;
 import org.neo4j.driver.internal.packstream.PackOutput;
 import org.neo4j.driver.internal.packstream.PackStream;
 import org.neo4j.driver.internal.packstream.PackType;
-import org.neo4j.driver.internal.packstream.ByteArrayIncompatiblePacker;
+import org.neo4j.driver.internal.types.TypeConstructor;
 import org.neo4j.driver.internal.util.Iterables;
 import org.neo4j.driver.internal.value.InternalValue;
 import org.neo4j.driver.internal.value.ListValue;
@@ -48,7 +43,6 @@ import org.neo4j.driver.internal.value.PathValue;
 import org.neo4j.driver.internal.value.RelationshipValue;
 import org.neo4j.driver.v1.Value;
 import org.neo4j.driver.v1.exceptions.ClientException;
-import org.neo4j.driver.v1.types.Entity;
 import org.neo4j.driver.v1.types.Node;
 import org.neo4j.driver.v1.types.Path;
 import org.neo4j.driver.v1.types.Relationship;
@@ -74,45 +68,30 @@ public class PackStreamMessageFormatV1 implements MessageFormat
     public static final byte UNBOUND_RELATIONSHIP = 'r';
     public static final byte PATH = 'P';
 
-    public static final int VERSION = 1;
-
     public static final int NODE_FIELDS = 3;
 
-    private static final Map<String,Value> EMPTY_STRING_VALUE_MAP = new HashMap<>( 0 );
-
     @Override
-    public MessageFormat.Writer newWriter( WritableByteChannel ch, boolean byteArraySupportEnabled )
+    public MessageFormat.Writer newWriter( PackOutput output, boolean byteArraySupportEnabled )
     {
-        ChunkedOutput output = new ChunkedOutput( ch );
-        return new Writer( output, output.messageBoundaryHook(), byteArraySupportEnabled );
+        return new WriterV1( output, byteArraySupportEnabled );
     }
 
     @Override
-    public MessageFormat.Reader newReader( ReadableByteChannel ch )
+    public MessageFormat.Reader newReader( PackInput input )
     {
-        BufferingChunkedInput input = new BufferingChunkedInput( ch );
-        return new Reader( input, input.messageBoundaryHook() );
+        return new ReaderV1( input );
     }
 
-    @Override
-    public int version()
+    static class WriterV1 implements MessageFormat.Writer, MessageHandler
     {
-        return VERSION;
-    }
-
-    public static class Writer implements MessageFormat.Writer, MessageHandler
-    {
-        private final PackStream.Packer packer;
-        private final Runnable onMessageComplete;
+        final PackStream.Packer packer;
 
         /**
          * @param output interface to write messages to
-         * @param onMessageComplete invoked for each message, after it's done writing to the output
          * @param byteArraySupportEnabled specify if support to pack/write byte array to server
          */
-        public Writer( PackOutput output, Runnable onMessageComplete, boolean byteArraySupportEnabled )
+        WriterV1( PackOutput output, boolean byteArraySupportEnabled )
         {
-            this.onMessageComplete = onMessageComplete;
             if( byteArraySupportEnabled )
             {
                 packer = new PackStream.Packer( output );
@@ -126,10 +105,9 @@ public class PackStreamMessageFormatV1 implements MessageFormat
         @Override
         public void handleInitMessage( String clientNameAndVersion, Map<String,Value> authToken ) throws IOException
         {
-            packer.packStructHeader( 1, MSG_INIT );
+            packer.packStructHeader( 2, MSG_INIT );
             packer.pack( clientNameAndVersion );
             packRawMap( authToken );
-            onMessageComplete.run();
         }
 
         @Override
@@ -138,35 +116,30 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             packer.packStructHeader( 2, MSG_RUN );
             packer.pack( statement );
             packRawMap( parameters );
-            onMessageComplete.run();
         }
 
         @Override
         public void handlePullAllMessage() throws IOException
         {
             packer.packStructHeader( 0, MSG_PULL_ALL );
-            onMessageComplete.run();
         }
 
         @Override
         public void handleDiscardAllMessage() throws IOException
         {
             packer.packStructHeader( 0, MSG_DISCARD_ALL );
-            onMessageComplete.run();
         }
 
         @Override
         public void handleResetMessage() throws IOException
         {
             packer.packStructHeader( 0, MSG_RESET );
-            onMessageComplete.run();
         }
 
         @Override
         public void handleAckFailureMessage() throws IOException
         {
             packer.packStructHeader( 0, MSG_ACK_FAILURE );
-            onMessageComplete.run();
         }
 
         @Override
@@ -174,7 +147,6 @@ public class PackStreamMessageFormatV1 implements MessageFormat
         {
             packer.packStructHeader( 1, MSG_SUCCESS );
             packRawMap( meta );
-            onMessageComplete.run();
         }
 
         @Override
@@ -186,7 +158,6 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             {
                 packValue( field );
             }
-            onMessageComplete.run();
         }
 
         @Override
@@ -200,14 +171,12 @@ public class PackStreamMessageFormatV1 implements MessageFormat
 
             packer.pack( "message" );
             packValue( value( message ) );
-            onMessageComplete.run();
         }
 
         @Override
         public void handleIgnoredMessage() throws IOException
         {
             packer.packStructHeader( 0, MSG_IGNORED );
-            onMessageComplete.run();
         }
 
         private void packRawMap( Map<String,Value> map ) throws IOException
@@ -227,33 +196,45 @@ public class PackStreamMessageFormatV1 implements MessageFormat
 
         private void packValue( Value value ) throws IOException
         {
-            switch ( ( (InternalValue) value ).typeConstructor() )
+            if ( value instanceof InternalValue )
             {
-                case NULL_TyCon:
+                packInternalValue( ((InternalValue) value) );
+            }
+            else
+            {
+                throw new IllegalArgumentException( "Unable to pack: " + value );
+            }
+        }
+
+        void packInternalValue( InternalValue value ) throws IOException
+        {
+            switch ( value.typeConstructor() )
+            {
+                case NULL:
                     packer.packNull();
                     break;
 
-                case BYTES_TyCon:
+                case BYTES:
                     packer.pack( value.asByteArray() );
                     break;
 
-                case STRING_TyCon:
+                case STRING:
                     packer.pack( value.asString() );
                     break;
 
-                case BOOLEAN_TyCon:
+                case BOOLEAN:
                     packer.pack( value.asBoolean() );
                     break;
 
-                case INTEGER_TyCon:
+                case INTEGER:
                     packer.pack( value.asLong() );
                     break;
 
-                case FLOAT_TyCon:
+                case FLOAT:
                     packer.pack( value.asDouble() );
                     break;
 
-                case MAP_TyCon:
+                case MAP:
                     packer.packMapHeader( value.size() );
                     for ( String s : value.keys() )
                     {
@@ -262,7 +243,7 @@ public class PackStreamMessageFormatV1 implements MessageFormat
                     }
                     break;
 
-                case LIST_TyCon:
+                case LIST:
                     packer.packListHeader( value.size() );
                     for ( Value item : value.values() )
                     {
@@ -270,137 +251,25 @@ public class PackStreamMessageFormatV1 implements MessageFormat
                     }
                     break;
 
-                case NODE_TyCon:
-                {
-                    Node node = value.asNode();
-                    packNode( node );
-                }
-                break;
-
-                case RELATIONSHIP_TyCon:
-                {
-                    Relationship rel = value.asRelationship();
-                    packer.packStructHeader( 5, RELATIONSHIP );
-                    packer.pack( rel.id() );
-                    packer.pack( rel.startNodeId() );
-                    packer.pack( rel.endNodeId() );
-
-                    packer.pack( rel.type() );
-
-                    packProperties( rel );
-                }
-                break;
-
-                case PATH_TyCon:
-                    Path path = value.asPath();
-                    packer.packStructHeader( 3, PATH );
-
-                    // Unique nodes
-                    Map<Node, Integer> nodeIdx = new LinkedHashMap<>();
-                    for ( Node node : path.nodes() )
-                    {
-                        if ( !nodeIdx.containsKey( node ) )
-                        {
-                            nodeIdx.put( node, nodeIdx.size() );
-                        }
-                    }
-                    packer.packListHeader( nodeIdx.size() );
-                    for ( Node node : nodeIdx.keySet() )
-                    {
-                        packNode( node );
-                    }
-
-                    // Unique rels
-                    Map<Relationship, Integer> relIdx = new LinkedHashMap<>();
-                    for ( Relationship rel : path.relationships() )
-                    {
-                        if ( !relIdx.containsKey( rel ) )
-                        {
-                            relIdx.put( rel, relIdx.size() + 1 );
-                        }
-                    }
-                    packer.packListHeader( relIdx.size() );
-                    for ( Relationship rel : relIdx.keySet() )
-                    {
-                        packer.packStructHeader( 3, UNBOUND_RELATIONSHIP );
-                        packer.pack( rel.id() );
-                        packer.pack( rel.type() );
-                        packProperties( rel );
-                    }
-
-                    // Sequence
-                    packer.packListHeader( path.length() * 2 );
-                    for ( Path.Segment seg : path )
-                    {
-                        Relationship rel = seg.relationship();
-                        long relEndId = rel.endNodeId();
-                        long segEndId = seg.end().id();
-                        packer.pack( relEndId == segEndId ? (int)relIdx.get( rel ) : -relIdx.get( rel ) );
-                        packer.pack( nodeIdx.get( seg.end() ) );
-                    }
-                    break;
-
                 default:
-                    throw new IOException( "Unknown type: " + value );
+                    throw new IOException( "Unknown type: " + value.type().name() );
             }
         }
 
         @Override
-        public Writer flush() throws IOException
-        {
-            packer.flush();
-            return this;
-        }
-
-        @Override
-        public Writer write( Message msg ) throws IOException
+        public void write( Message msg ) throws IOException
         {
             msg.dispatch( this );
-            return this;
-        }
-
-        private void packNode( Node node ) throws IOException
-        {
-            packer.packStructHeader( NODE_FIELDS, NODE );
-            packer.pack( node.id() );
-
-            Iterable<String> labels = node.labels();
-            packer.packListHeader( Iterables.count( labels ) );
-            for ( String label : labels )
-            {
-                packer.pack( label );
-            }
-
-            packProperties( node );
-        }
-
-        private void packProperties( Entity entity ) throws IOException
-        {
-            Iterable<String> keys = entity.keys();
-            packer.packMapHeader( entity.size() );
-            for ( String propKey : keys )
-            {
-                packer.pack( propKey );
-                packValue( entity.get( propKey ) );
-            }
         }
     }
 
-    public static class Reader implements MessageFormat.Reader
+    static class ReaderV1 implements MessageFormat.Reader
     {
-        private final PackStream.Unpacker unpacker;
-        private final Runnable onMessageComplete;
+        final PackStream.Unpacker unpacker;
 
-        public Reader( PackInput input, Runnable onMessageComplete )
+        ReaderV1( PackInput input )
         {
             unpacker = new PackStream.Unpacker( input );
-            this.onMessageComplete = onMessageComplete;
-        }
-
-        @Override
-        public boolean hasNext() throws IOException
-        {
-            return unpacker.hasNext();
         }
 
         /**
@@ -448,19 +317,16 @@ public class PackStreamMessageFormatV1 implements MessageFormat
         private void unpackResetMessage( MessageHandler handler ) throws IOException
         {
             handler.handleResetMessage();
-            onMessageComplete.run();
         }
 
         private void unpackInitMessage( MessageHandler handler ) throws IOException
         {
             handler.handleInitMessage( unpacker.unpackString(), unpackMap() );
-            onMessageComplete.run();
         }
 
         private void unpackIgnoredMessage( MessageHandler output ) throws IOException
         {
             output.handleIgnoredMessage();
-            onMessageComplete.run();
         }
 
         private void unpackFailureMessage( MessageHandler output ) throws IOException
@@ -469,7 +335,6 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             String code = params.get( "code" ).asString();
             String message = params.get( "message" ).asString();
             output.handleFailureMessage( code, message );
-            onMessageComplete.run();
         }
 
         private void unpackRunMessage( MessageHandler output ) throws IOException
@@ -477,26 +342,22 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             String statement = unpacker.unpackString();
             Map<String,Value> params = unpackMap();
             output.handleRunMessage( statement, params );
-            onMessageComplete.run();
         }
 
         private void unpackDiscardAllMessage( MessageHandler output ) throws IOException
         {
             output.handleDiscardAllMessage();
-            onMessageComplete.run();
         }
 
         private void unpackPullAllMessage( MessageHandler output ) throws IOException
         {
             output.handlePullAllMessage();
-            onMessageComplete.run();
         }
 
         private void unpackSuccessMessage( MessageHandler output ) throws IOException
         {
             Map<String,Value> map = unpackMap();
             output.handleSuccessMessage( map );
-            onMessageComplete.run();
         }
 
         private void unpackRecordMessage(MessageHandler output) throws IOException
@@ -508,14 +369,13 @@ public class PackStreamMessageFormatV1 implements MessageFormat
                 fields[i] = unpackValue();
             }
             output.handleRecordMessage( fields );
-            onMessageComplete.run();
         }
 
         private Value unpackValue() throws IOException
         {
             //NOTE: blob support
-            Value blobValue = BlobSupport.readBlobValueFromBoltStreamIfAvailable(unpacker);
-            if(blobValue!=null)
+            Value blobValue = BlobIO.readBlobValueFromBoltStreamIfAvailable(unpacker);
+            if(blobValue != null)
                 return blobValue;
 
             PackType type = unpacker.peekNextType();
@@ -550,22 +410,30 @@ public class PackStreamMessageFormatV1 implements MessageFormat
                 case STRUCT:
                 {
                     long size = unpacker.unpackStructHeader();
-                    switch ( unpacker.unpackStructSignature() )
-                    {
-                        case NODE:
-                            ensureCorrectStructSize( "NODE", NODE_FIELDS, size );
-                            InternalNode adapted = unpackNode();
-                            return new NodeValue( adapted );
-                        case RELATIONSHIP:
-                            ensureCorrectStructSize( "RELATIONSHIP", 5, size );
-                            return unpackRelationship();
-                        case PATH:
-                            ensureCorrectStructSize( "PATH", 3, size );
-                            return unpackPath();
-                    }
+                    byte structType = unpacker.unpackStructSignature();
+                    return unpackStruct( size, structType );
                 }
             }
             throw new IOException( "Unknown value type: " + type );
+        }
+
+        Value unpackStruct( long size, byte type ) throws IOException
+        {
+            switch ( type )
+            {
+                case NODE:
+                    ensureCorrectStructSize( TypeConstructor.NODE, NODE_FIELDS, size );
+                    InternalNode adapted = unpackNode();
+                    return new NodeValue( adapted );
+                case RELATIONSHIP:
+                    ensureCorrectStructSize( TypeConstructor.RELATIONSHIP, 5, size );
+                    return unpackRelationship();
+                case PATH:
+                    ensureCorrectStructSize( TypeConstructor.PATH, 3, size );
+                    return unpackPath();
+                default:
+                    throw new IOException( "Unknown struct type: " + type );
+            }
         }
 
         private Value unpackRelationship() throws IOException
@@ -591,7 +459,7 @@ public class PackStreamMessageFormatV1 implements MessageFormat
                 labels.add( unpacker.unpackString() );
             }
             int numProps = (int) unpacker.unpackMapHeader();
-            Map<String,Value> props = new HashMap<>();
+            Map<String,Value> props = Iterables.newHashMapWithSize( numProps );
             for ( int j = 0; j < numProps; j++ )
             {
                 String key = unpacker.unpackString();
@@ -607,7 +475,7 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             Node[] uniqNodes = new Node[(int) unpacker.unpackListHeader()];
             for ( int i = 0; i < uniqNodes.length; i++ )
             {
-                ensureCorrectStructSize( "NODE", NODE_FIELDS, unpacker.unpackStructHeader() );
+                ensureCorrectStructSize( TypeConstructor.NODE, NODE_FIELDS, unpacker.unpackStructHeader() );
                 ensureCorrectStructSignature( "NODE", NODE, unpacker.unpackStructSignature() );
                 uniqNodes[i] = unpackNode();
             }
@@ -616,7 +484,7 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             InternalRelationship[] uniqRels = new InternalRelationship[(int) unpacker.unpackListHeader()];
             for ( int i = 0; i < uniqRels.length; i++ )
             {
-                ensureCorrectStructSize( "RELATIONSHIP", 3, unpacker.unpackStructHeader() );
+                ensureCorrectStructSize( TypeConstructor.RELATIONSHIP, 3, unpacker.unpackStructHeader() );
                 ensureCorrectStructSignature( "UNBOUND_RELATIONSHIP", UNBOUND_RELATIONSHIP, unpacker.unpackStructSignature() );
                 long id = unpacker.unpackLong();
                 String relType = unpacker.unpackString();
@@ -659,10 +527,11 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             return new PathValue( new InternalPath( Arrays.asList( segments ), Arrays.asList( nodes ), Arrays.asList( rels ) ) );
         }
 
-        private void ensureCorrectStructSize( String structName, int expected, long actual )
+        void ensureCorrectStructSize( TypeConstructor typeConstructor, int expected, long actual )
         {
             if ( expected != actual )
             {
+                String structName = typeConstructor.toString();
                 throw new ClientException( String.format(
                         "Invalid message received, serialized %s structures should have %d fields, "
                                 + "received %s structure has %d fields.", structName, expected, structName, actual ) );
@@ -674,7 +543,7 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             if ( expected != actual )
             {
                 throw new ClientException( String.format(
-                        "Invalid message received, expected a `%s`, signature 0x%s. Recieved signature was 0x%s.",
+                        "Invalid message received, expected a `%s`, signature 0x%s. Received signature was 0x%s.",
                         structName, Integer.toHexString( expected ), Integer.toHexString( actual ) ) );
             }
         }
@@ -684,9 +553,9 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             int size = (int) unpacker.unpackMapHeader();
             if ( size == 0 )
             {
-                return EMPTY_STRING_VALUE_MAP;
+                return Collections.emptyMap();
             }
-            Map<String,Value> map = new HashMap<>( size );
+            Map<String,Value> map = Iterables.newHashMapWithSize( size );
             for ( int i = 0; i < size; i++ )
             {
                 String key = unpacker.unpackString();
@@ -695,14 +564,4 @@ public class PackStreamMessageFormatV1 implements MessageFormat
             return map;
         }
     }
-
-    public static class NoOpRunnable implements Runnable
-    {
-        @Override
-        public void run()
-        {
-            // no-op
-        }
-    }
-
 }

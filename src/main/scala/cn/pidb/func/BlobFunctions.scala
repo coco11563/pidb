@@ -2,9 +2,8 @@ package cn.pidb.func
 
 import java.io.File
 
-import cn.pidb.util.CodecUtils
 import org.neo4j.procedure.{Description, Name, UserFunction}
-import org.neo4j.values.storable.{Blob}
+import org.neo4j.values.storable.Blob
 
 /**
   * Created by bluejoe on 2018/7/22.
@@ -25,6 +24,12 @@ class BlobFunctions {
     }
 
     Blob.fromFile(file);
+  }
+
+  @UserFunction("Blob.empty")
+  @Description("generate an empty blob")
+  def empty(): Object = {
+    Blob.EMPTY
   }
 
   @UserFunction("Blob.len")

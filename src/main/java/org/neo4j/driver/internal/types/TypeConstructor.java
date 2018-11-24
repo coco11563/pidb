@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2002-2017 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2018 Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -24,144 +23,55 @@ import org.neo4j.driver.v1.Value;
 public enum TypeConstructor
 {
     //NOTE: add blob
-    BLOB_TyCon{
-        @Override
-        public String typeName()
-        {
-            return "BLOB";
-        }
-    },
-    //
-    ANY_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "ANY";
-        }
-
-        @Override
-        public boolean covers( Value value )
-        {
-            return ! value.isNull();
-        }
-    },
-    BOOLEAN_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "BOOLEAN";
-        }
-    },
-
-    BYTES_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "BYTES";
-        }
-    },
-
-    STRING_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "STRING";
-        }
-    },
-
-    NUMBER_TyCon {
-        @Override
-        public boolean covers( Value value )
-        {
-            TypeConstructor valueType = typeConstructorOf( value );
-            return valueType == this || valueType == INTEGER_TyCon || valueType == FLOAT_TyCon;
-        }
-
-        @Override
-        public String typeName()
-        {
-            return "NUMBER";
-        }
-    },
-
-    INTEGER_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "INTEGER";
-        }
-    },
-
-    FLOAT_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "FLOAT";
-        }
-    },
-
-    LIST_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "LIST";
-        }
-    },
-
-    MAP_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "MAP";
-        }
-
-        @Override
-        public boolean covers( Value value )
-        {
-            TypeConstructor valueType = typeConstructorOf( value );
-            return valueType == MAP_TyCon || valueType == NODE_TyCon || valueType == RELATIONSHIP_TyCon;
-        }
-    },
-
-    NODE_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "NODE";
-        }
-    },
-
-    RELATIONSHIP_TyCon
+    BLOB,
+    ANY
             {
                 @Override
-                public String typeName()
+                public boolean covers( Value value )
                 {
-                    return "RELATIONSHIP";
+                    return !value.isNull();
                 }
             },
-
-    PATH_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "PATH";
-        }
-    },
-
-    NULL_TyCon {
-        @Override
-        public String typeName()
-        {
-            return "NULL";
-        }
-    };
+    BOOLEAN,
+    BYTES,
+    STRING,
+    NUMBER
+            {
+                @Override
+                public boolean covers( Value value )
+                {
+                    TypeConstructor valueType = typeConstructorOf( value );
+                    return valueType == this || valueType == INTEGER || valueType == FLOAT;
+                }
+            },
+    INTEGER,
+    FLOAT,
+    LIST,
+    MAP
+            {
+                @Override
+                public boolean covers( Value value )
+                {
+                    TypeConstructor valueType = typeConstructorOf( value );
+                    return valueType == MAP || valueType == NODE || valueType == RELATIONSHIP;
+                }
+            },
+    NODE,
+    RELATIONSHIP,
+    PATH,
+    POINT,
+    DATE,
+    TIME,
+    LOCAL_TIME,
+    LOCAL_DATE_TIME,
+    DATE_TIME,
+    DURATION,
+    NULL;
 
     private static TypeConstructor typeConstructorOf( Value value )
     {
-        return ( (InternalValue) value ).typeConstructor();
+        return ((InternalValue) value).typeConstructor();
     }
-
-    public abstract String typeName();
 
     public boolean covers( Value value )
     {

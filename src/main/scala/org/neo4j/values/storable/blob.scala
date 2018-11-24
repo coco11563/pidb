@@ -1,13 +1,14 @@
 package org.neo4j.values.storable
 
-import java.io.{File, FileInputStream, InputStream}
+import java.io._
 import java.net.{HttpURLConnection, URL}
 
-import cn.pidb.engine.{BlobId, BlobSupport}
+import cn.pidb.engine.{BlobIO, BlobId}
 import cn.pidb.util.{Logging, MimeType}
+import org.apache.commons.io.IOUtils
 import org.neo4j.cypher.internal.util.v3_4.symbols._
 import org.neo4j.driver.internal.types.{TypeConstructor, TypeRepresentation}
-import org.neo4j.driver.internal.value.ScalarValueAdapter
+import org.neo4j.driver.internal.value.ValueAdapter
 import org.neo4j.driver.v1.types.Type
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.values.ValueMapper
@@ -25,12 +26,23 @@ trait Blob {
   val mimeType: MimeType;
 
   def offerStream[T](consume: (InputStream) => T): T = streamSource.offerStream(consume);
+
+  def toByteArray() = offerStream(IOUtils.toByteArray(_));
 }
 
 object Blob {
 
   class BlobImpl(val streamSource: InputStreamSource, val length: Long, val mimeType: MimeType) extends Blob {
   }
+
+  val EMPTY: Blob = fromInputStreamSource(new InputStreamSource() {
+    override def offerStream[T](consume: (InputStream) => T): T = {
+      val fis = new ByteArrayInputStream(Array[Byte]());
+      val t = consume(fis);
+      fis.close();
+      t;
+    }
+  }, 0, Some(MimeType.fromText("application/octet-stream")));
 
   def fromInputStreamSource(iss: InputStreamSource, length: Long, mimeType: Option[MimeType] = None) = {
     new BlobImpl(iss,
@@ -53,7 +65,7 @@ object Blob {
 
   val NEO_BLOB_TYPE = new NeoBlobType();
   val CYPHER_BLOB_TYPE = new CypherBlobType();
-  val BOLT_BLOB_TYPE = new TypeRepresentation(TypeConstructor.BLOB_TyCon);
+  val BOLT_BLOB_TYPE = new TypeRepresentation(TypeConstructor.BLOB);
 }
 
 class NeoBlobType extends Neo4jTypes.AnyType("BLOB?") {
@@ -65,16 +77,43 @@ class CypherBlobType extends CypherType {
   override def toNeoTypeString = "BLOB?"
 }
 
-class RemoteBlobValue(urlConnector: String, blobId: BlobId, val length: Long, val mimeType: MimeType)
-  extends ScalarValueAdapter with Blob with Logging {
+abstract class BoltBlobValue(val blobId: BlobId, val length: Long, val mimeType: MimeType)
+  extends ValueAdapter with Blob with Logging {
   override def `type`(): Type = Blob.BOLT_BLOB_TYPE
 
-  override def asLiteralString = blobId.asLiteralString();
+  override val streamSource: InputStreamSource;
+
+  override def equals(obj: Any): Boolean = obj.isInstanceOf[BoltBlobValue] &&
+    obj.asInstanceOf[BoltBlobValue].blobId.equals(this.blobId);
+
+  override def hashCode: Int = blobId.hashCode()
+
+  override def toString: String = blobId.asLiteralString()
+}
+
+class InlineBlobValue(bytes: Array[Byte], blobId: BlobId, length: Long, mimeType: MimeType)
+  extends BoltBlobValue(blobId, length, mimeType) {
+
+  override val streamSource: InputStreamSource = new InputStreamSource() {
+    override def offerStream[T](consume: (InputStream) => T): T = {
+      val fis = new ByteArrayInputStream(bytes);
+      if (logger.isDebugEnabled)
+        logger.debug(s"InlineBlobValue: len=${bytes.length}");
+      val t = consume(fis);
+      fis.close();
+      t;
+    }
+  };
+}
+
+class RemoteBlobValue(urlConnector: String, blobId: BlobId, length: Long, mimeType: MimeType)
+  extends BoltBlobValue(blobId, length, mimeType) {
 
   override val streamSource: InputStreamSource = new InputStreamSource() {
     def offerStream[T](consume: (InputStream) => T): T = {
       val url = new URL(s"$urlConnector?bid=${blobId.asLiteralString()}");
-      logger.debug(s"RemoteBlobValue: $url");
+      if (logger.isDebugEnabled)
+        logger.debug(s"RemoteBlobValue: $url");
       val connection = url.openConnection().asInstanceOf[HttpURLConnection];
       connection.setDoOutput(false);
       connection.setDoInput(true);
@@ -95,7 +134,7 @@ class BlobValue(val blob: Blob) extends ScalarValue {
   override def unsafeCompareTo(value: Value): Int = blob.length.compareTo(value.asInstanceOf[BlobValue].blob.length)
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {
-    BlobSupport.writeBlobValue(this, valueWriter);
+    BlobIO.writeBlobValue(this, valueWriter);
   }
 
   override def asObjectCopy(): AnyRef = blob;

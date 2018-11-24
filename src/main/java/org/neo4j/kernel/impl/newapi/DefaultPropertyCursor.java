@@ -19,7 +19,7 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import cn.pidb.engine.BlobSupport;
+import cn.pidb.engine.BlobIO;
 import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.api.AssertOpen;
@@ -280,7 +280,7 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
                 return temporalValue();
             ////NOTE:add blob type
             case BLOB:
-                return BlobSupport.readBlobValue(this.getBlocks(), this);
+                return BlobIO.readBlobValue(this.getBlocks(), this);
             default:
                 throw new IllegalStateException("Unsupported PropertyType: " + type.name());
         }
