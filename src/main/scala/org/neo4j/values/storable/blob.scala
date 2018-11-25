@@ -8,8 +8,6 @@ import cn.pidb.util.{Logging, MimeType}
 import org.apache.commons.io.IOUtils
 import org.neo4j.cypher.internal.util.v3_4.symbols._
 import org.neo4j.driver.internal.types.{TypeConstructor, TypeRepresentation}
-import org.neo4j.driver.internal.value.ValueAdapter
-import org.neo4j.driver.v1.types.Type
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.values.ValueMapper
 
@@ -28,6 +26,8 @@ trait Blob {
   def offerStream[T](consume: (InputStream) => T): T = streamSource.offerStream(consume);
 
   def toByteArray() = offerStream(IOUtils.toByteArray(_));
+
+  override def toString = s"blob(length=${length},mime-type=${mimeType.text})";
 }
 
 object Blob {
@@ -77,22 +77,8 @@ class CypherBlobType extends CypherType {
   override def toNeoTypeString = "BLOB?"
 }
 
-abstract class BoltBlobValue(val blobId: BlobId, val length: Long, val mimeType: MimeType)
-  extends ValueAdapter with Blob with Logging {
-  override def `type`(): Type = Blob.BOLT_BLOB_TYPE
-
-  override val streamSource: InputStreamSource;
-
-  override def equals(obj: Any): Boolean = obj.isInstanceOf[BoltBlobValue] &&
-    obj.asInstanceOf[BoltBlobValue].blobId.equals(this.blobId);
-
-  override def hashCode: Int = blobId.hashCode()
-
-  override def toString: String = blobId.asLiteralString()
-}
-
-class InlineBlobValue(bytes: Array[Byte], blobId: BlobId, length: Long, mimeType: MimeType)
-  extends BoltBlobValue(blobId, length, mimeType) {
+class InlineBlob(bytes: Array[Byte], val length: Long, val mimeType: MimeType)
+  extends Blob with Logging {
 
   override val streamSource: InputStreamSource = new InputStreamSource() {
     override def offerStream[T](consume: (InputStream) => T): T = {
@@ -106,8 +92,8 @@ class InlineBlobValue(bytes: Array[Byte], blobId: BlobId, length: Long, mimeType
   };
 }
 
-class RemoteBlobValue(urlConnector: String, blobId: BlobId, length: Long, mimeType: MimeType)
-  extends BoltBlobValue(blobId, length, mimeType) {
+class RemoteBlob(urlConnector: String, blobId: BlobId, val length: Long, val mimeType: MimeType)
+  extends Blob with Logging {
 
   override val streamSource: InputStreamSource = new InputStreamSource() {
     def offerStream[T](consume: (InputStream) => T): T = {
@@ -130,7 +116,11 @@ class RemoteBlobValue(urlConnector: String, blobId: BlobId, length: Long, mimeTy
   }
 }
 
-class BlobValue(val blob: Blob) extends ScalarValue {
+trait BlobValueInterface {
+  val blob: Blob;
+}
+
+class BlobValue(val blob: Blob) extends ScalarValue with BlobValueInterface {
   override def unsafeCompareTo(value: Value): Int = blob.length.compareTo(value.asInstanceOf[BlobValue].blob.length)
 
   override def writeTo[E <: Exception](valueWriter: ValueWriter[E]): Unit = {

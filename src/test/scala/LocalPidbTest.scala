@@ -1,7 +1,6 @@
 import java.io.{File, FileInputStream}
 
-import cn.pidb.engine.PidbEngine
-import org.apache.commons.io.{FileUtils, IOUtils}
+import org.apache.commons.io.IOUtils
 import org.junit.{Assert, Test}
 import org.neo4j.graphdb.Node
 import org.neo4j.values.storable.Blob
@@ -28,8 +27,12 @@ class LocalPidbTest extends TestBase {
       });
 
     //cypher query
-    val blob1 = db2.execute("match (n) where n.name='bob' return n.photo").next()
-      .get("n.photo").asInstanceOf[Blob];
+    val r1 = db2.execute("match (n) where n.name='bob' return n.photo,n.name,n.age,n.bytes").next();
+    Assert.assertEquals("bob", r1.get("n.name"));
+    Assert.assertEquals(30, r1.get("n.age"));
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))), r1.get("n.bytes").asInstanceOf[Array[Byte]]);
+
+    val blob1 = r1.get("n.photo").asInstanceOf[Blob];
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       blob1.offerStream {

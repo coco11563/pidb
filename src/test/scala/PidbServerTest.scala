@@ -26,22 +26,13 @@ class PidbServerTest extends TestBase {
 
     //blob
     val blob0 = client.querySingleObject("return Blob.empty()", (result: Record) => {
-      result.get(0).asInstanceOf[Blob]
+      result.get(0).asBlob
     });
 
     Assert.assertEquals(0, blob0.length);
 
-    val blob3 = client.querySingleObject("return Blob.fromFile('./test.png')", (result: Record) => {
-      result.get(0).asInstanceOf[Blob]
-    });
-
-    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
-      blob3.offerStream {
-        IOUtils.toByteArray(_)
-      });
-
-    val blob1 = client.querySingleObject("match (n) where n.name='bob' return n.photo", (result: Record) => {
-      result.get("n.photo").asInstanceOf[Blob]
+    val blob1 = client.querySingleObject("return Blob.fromFile('./test.png')", (result: Record) => {
+      result.get(0).asBlob
     });
 
     Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
@@ -49,16 +40,58 @@ class PidbServerTest extends TestBase {
         IOUtils.toByteArray(_)
       });
 
-    val blob2 = client.querySingleObject("match (n) where n.name='alex' return n.photo", (result: Record) => {
-      result.get("n.photo").asInstanceOf[Blob]
+    val blob2 = client.querySingleObject("match (n) where n.name='bob' return n.photo", (result: Record) => {
+      result.get("n.photo").asBlob
     });
 
-    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
       blob2.offerStream {
         IOUtils.toByteArray(_)
       });
 
+    val blob3 = client.querySingleObject("match (n) where n.name='alex' return n.photo", (result: Record) => {
+      result.get("n.photo").asBlob
+    });
 
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
+      blob3.offerStream {
+        IOUtils.toByteArray(_)
+      });
+
+    //query with parameters
+    val blob4 = client.querySingleObject("match (n) where n.name={NAME} return n.photo",
+      Map("NAME" -> "bob"), (result: Record) => {
+        result.get("n.photo").asBlob
+      });
+
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
+      blob4.offerStream {
+        IOUtils.toByteArray(_)
+      });
+
+    //commit new records
+    client.executeUpdate("CREATE (n {name:{NAME}})",
+      Map("NAME" -> "张三"));
+
+    client.executeUpdate("CREATE (n {name:{NAME}, photo:{BLOB_OBJECT}})",
+      Map("NAME" -> "张三", "BLOB_OBJECT" -> Blob.EMPTY));
+
+    client.executeUpdate("CREATE (n {name:{NAME}, photo:{BLOB_OBJECT}})",
+      Map("NAME" -> "张三", "BLOB_OBJECT" -> Blob.fromFile(new File("./test1.png"))));
+
+    client.executeQuery("return {BLOB_OBJECT}",
+      Map("BLOB_OBJECT" -> Blob.fromFile(new File("./test.png"))));
+
+    client.querySingleObject("return {BLOB_OBJECT}",
+      Map("BLOB_OBJECT" -> Blob.fromFile(new File("./test.png"))), (result: Record) => {
+        val blob = result.get(0).asBlob
+
+        Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test.png"))),
+          blob.offerStream {
+            IOUtils.toByteArray(_)
+          });
+
+      });
 
     server.shutdown();
   }
