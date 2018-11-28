@@ -3,15 +3,11 @@ package cn.pidb.engine
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.{lang, util}
-import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import cn.pidb.func.BlobFunctions
 import cn.pidb.util.ConfigEx._
 import cn.pidb.util.Logging
 import cn.pidb.util.ReflectUtils._
-import org.apache.commons.io.IOUtils
-import org.eclipse.jetty.server.Server
-import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHolder}
 import org.neo4j.graphdb._
 import org.neo4j.graphdb.event.{KernelEventHandler, TransactionEventHandler}
 import org.neo4j.graphdb.factory.{GraphDatabaseBuilder, GraphDatabaseFactory}
@@ -27,6 +23,7 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI
   * Created by bluejoe on 2018/8/9.
   */
 object PidbEngine extends Logging {
+  //TODO: use platform.lifesupport
   def startServer(dbDir: File, propertiesFilePath: String, boltUrl: String = "localhost:8687"): GraphDatabaseService = {
     _openDatabase(dbDir, {
       (builder: GraphDatabaseBuilder) => {
@@ -51,7 +48,7 @@ object PidbEngine extends Logging {
         val hostName = conf.getValueAsString("blob.http.host", "localhost");
         val httpUrl = s"http://$hostName:${httpPort}$servletPath";
 
-        conf.putRuntimeContext("blob.http.connector_url", httpUrl);
+        conf.putRuntimeContext("blob.server.connector.url", httpUrl);
     });
   }
 
@@ -59,7 +56,7 @@ object PidbEngine extends Logging {
     _openDatabase(dbDir, (builder: GraphDatabaseBuilder) => {
       builder.loadPropertiesFromFile(propertiesFilePath);
       logger.info(s"loading configuration from $propertiesFilePath");
-    }, (Config, GraphDatabaseService) =>{});
+    }, (Config, GraphDatabaseService) => {});
   }
 
   def connect(url: String = "bolt://localhost:8687", user: String = "", pass: String = "") = {

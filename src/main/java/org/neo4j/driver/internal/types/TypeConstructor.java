@@ -19,43 +19,35 @@ package org.neo4j.driver.internal.types;
 
 import org.neo4j.driver.internal.value.InternalValue;
 import org.neo4j.driver.v1.Value;
+import org.neo4j.values.storable.BlobValueInterface;
 
-public enum TypeConstructor
-{
-    //NOTE: add blob
-    BLOB,
-    ANY
-            {
-                @Override
-                public boolean covers( Value value )
-                {
-                    return !value.isNull();
-                }
-            },
+public enum TypeConstructor {
+    ANY {
+        @Override
+        public boolean covers(Value value) {
+            return !value.isNull();
+        }
+    },
     BOOLEAN,
     BYTES,
     STRING,
-    NUMBER
-            {
-                @Override
-                public boolean covers( Value value )
-                {
-                    TypeConstructor valueType = typeConstructorOf( value );
-                    return valueType == this || valueType == INTEGER || valueType == FLOAT;
-                }
-            },
+    NUMBER {
+        @Override
+        public boolean covers(Value value) {
+            TypeConstructor valueType = typeConstructorOf(value);
+            return valueType == this || valueType == INTEGER || valueType == FLOAT;
+        }
+    },
     INTEGER,
     FLOAT,
     LIST,
-    MAP
-            {
-                @Override
-                public boolean covers( Value value )
-                {
-                    TypeConstructor valueType = typeConstructorOf( value );
-                    return valueType == MAP || valueType == NODE || valueType == RELATIONSHIP;
-                }
-            },
+    MAP {
+        @Override
+        public boolean covers(Value value) {
+            TypeConstructor valueType = typeConstructorOf(value);
+            return valueType == MAP || valueType == NODE || valueType == RELATIONSHIP;
+        }
+    },
     NODE,
     RELATIONSHIP,
     PATH,
@@ -66,15 +58,22 @@ public enum TypeConstructor
     LOCAL_DATE_TIME,
     DATE_TIME,
     DURATION,
+
+    //NOTE: add blob
+    BLOB {
+        @Override
+        public boolean covers(Value value) {
+            return value instanceof BlobValueInterface;
+        }
+    },
+
     NULL;
 
-    private static TypeConstructor typeConstructorOf( Value value )
-    {
+    private static TypeConstructor typeConstructorOf(Value value) {
         return ((InternalValue) value).typeConstructor();
     }
 
-    public boolean covers( Value value )
-    {
-        return this == typeConstructorOf( value );
+    public boolean covers(Value value) {
+        return this == typeConstructorOf(value);
     }
 }

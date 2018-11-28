@@ -5,6 +5,8 @@ import org.junit.{Assert, Test}
 import org.neo4j.graphdb.Node
 import org.neo4j.values.storable.Blob
 
+import scala.collection.JavaConversions
+
 class LocalPidbTest extends TestBase {
   @Test
   def testProperty(): Unit = {
@@ -46,6 +48,32 @@ class LocalPidbTest extends TestBase {
       blob3.offerStream {
         IOUtils.toByteArray(_)
       });
+
+    db2.execute("CREATE (n {name:{NAME}})",
+      JavaConversions.mapAsJavaMap(Map("NAME" -> "张三")));
+
+    db2.execute("CREATE (n {name:{NAME}, photo:{BLOB_OBJECT}})",
+      JavaConversions.mapAsJavaMap(Map("NAME" -> "张三", "BLOB_OBJECT" -> Blob.EMPTY)));
+
+    db2.execute("CREATE (n {name:{NAME}, photo:{BLOB_OBJECT}})",
+      JavaConversions.mapAsJavaMap(Map("NAME" -> "张三", "BLOB_OBJECT" -> Blob.fromFile(new File("./test1.png")))));
+
+    Assert.assertEquals(3.toLong, db2.execute("match (n) where n.name=$NAME return count(n)",
+      JavaConversions.mapAsJavaMap(Map("NAME" -> "张三"))).next().get("count(n)"));
+
+    val it2 = db2.execute("match (n) where n.name=$NAME return n.photo",
+      JavaConversions.mapAsJavaMap(Map("NAME" -> "张三")));
+
+    Assert.assertEquals(null,
+      it2.next().get("n.photo"));
+
+    Assert.assertEquals(it2.next().get("n.photo"), Blob.EMPTY);
+
+    Assert.assertArrayEquals(IOUtils.toByteArray(new FileInputStream(new File("./test1.png"))),
+      it2.next().get("n.photo").asInstanceOf[Blob].offerStream {
+        IOUtils.toByteArray(_)
+      });
+
 
     //delete one
     v1.removeProperty("photo");

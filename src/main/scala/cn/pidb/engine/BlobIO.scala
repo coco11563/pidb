@@ -12,6 +12,7 @@ import org.neo4j.kernel.impl.store.record.{PrimitiveRecord, PropertyBlock, Prope
 import org.neo4j.kernel.impl.store.{PropertyStore, PropertyType}
 import org.neo4j.kernel.impl.transaction.state.RecordAccess
 import org.neo4j.kernel.impl.transaction.state.RecordAccess.RecordProxy
+import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
 
 /**
@@ -50,10 +51,10 @@ object BlobIO extends Logging {
     def writeBytes(bs: Array[Byte]);
   }
 
-  private def _writeBlobValue(value: BlobValueInterface, out: PackOutputInterface) = {
+  private def _writeBlobValue(value: BlobValueInterface, out: PackOutputInterface, useInlineAlways: Boolean) = {
     //create blodid
     val blobId = BlobId.createNewId();
-    val inline = value.blob.length <= MAX_INLINE_BLOB_BYTES;
+    val inline = useInlineAlways || (value.blob.length <= MAX_INLINE_BLOB_BYTES);
     //write marker
     out.writeByte(if (inline) {
       BOLT_VALUE_TYPE_BLOB_INLINE
@@ -71,9 +72,12 @@ object BlobIO extends Logging {
     }
     else {
       //write as a HTTP resource
-      //TODO?
-      val httpConnectorUrl: String = s"http://localhost:1224/blob";
-
+      val t = Thread.currentThread();
+      System.err.println(t.toString)
+      System.err.println(t.hashCode)
+      val config: Config = ThreadVars.get[Config]("config");
+      val httpConnectorUrl: String = config.getRuntimeContext("blob.server.connector.url").asInstanceOf[String];
+      //http://localhost:1224/blob
       val bs = httpConnectorUrl.getBytes("utf-8");
       out.writeInt(bs.length);
       out.writeBytes(bs);
@@ -92,7 +96,7 @@ object BlobIO extends Logging {
       override def writeBytes(bs: Array[Byte]): Unit = out.writeBytes(bs);
 
       override def writeLong(l: Long): Unit = out.writeLong(l);
-    });
+    }, true);
   }
 
   private def _writeBlobIntoStream(value: BlobValueInterface, blobId: BlobId, valueWriter: ValueWriter[_]) = {
@@ -105,11 +109,22 @@ object BlobIO extends Logging {
       override def writeBytes(bs: Array[Byte]): Unit = out.writeBytes(bs, 0, bs.length);
 
       override def writeLong(l: Long): Unit = out.writeLong(l);
-    });
+    }, false);
   }
 
-  def readBlobValueFromBoltStreamIfAvailable(unpacker: PackStream.Unpacker): Value = {
-    val in = unpacker._get("in").asInstanceOf[org.neo4j.driver.internal.packstream.PackInput];
+  trait PackInputInterface {
+    def peekByte(): Byte;
+
+    def readByte(): Byte;
+
+    def readBytes(bytes: Array[Byte], offset: Int, toRead: Int);
+
+    def readInt(): Int;
+
+    def readLong(): Long;
+  }
+
+  private def _readBlobValueFromBoltStreamIfAvailable(in: PackInputInterface): Blob = {
     val byte = in.peekByte();
     byte match {
       case BOLT_VALUE_TYPE_BLOB_REMOTE =>
@@ -123,21 +138,61 @@ object BlobIO extends Logging {
         in.readBytes(bs, 0, lengthUrl);
 
         val url = new String(bs, "utf-8");
-        new BoltBlobValue(new RemoteBlob(url, bid, length, mt));
+        new RemoteBlob(url, bid, length, mt);
 
       case BOLT_VALUE_TYPE_BLOB_INLINE =>
         in.readByte();
 
         val values = for (i <- 0 to 3) yield in.readLong();
-        val (bid, length, mt) = _unpackBlobValue(values.toArray);
+        val (_, length, mt) = _unpackBlobValue(values.toArray);
 
         //read inline
         val bs = new Array[Byte](length.toInt);
         in.readBytes(bs, 0, length.toInt);
-        new BoltBlobValue(new InlineBlob(bs, length, mt));
+        new InlineBlob(bs, length, mt);
 
       case _ => null;
     }
+  }
+
+  def readBlobValueFromBoltStreamIfAvailable(unpacker: PackStream.Unpacker): Value = {
+    val in = unpacker._get("in").asInstanceOf[org.neo4j.driver.internal.packstream.PackInput];
+    val blob = _readBlobValueFromBoltStreamIfAvailable(new PackInputInterface() {
+      def peekByte(): Byte = in.peekByte();
+
+      def readByte(): Byte = in.readByte();
+
+      def readBytes(bytes: Array[Byte], offset: Int, toRead: Int) = in.readBytes(bytes, offset, toRead);
+
+      def readInt(): Int = in.readInt();
+
+      def readLong(): Long = in.readLong();
+    });
+
+    if (null == blob)
+      null;
+    else
+      new BoltBlobValue(blob);
+  }
+
+  def readBlobValueFromBoltStreamIfAvailable(unpacker: org.neo4j.bolt.v1.packstream.PackStream.Unpacker): AnyValue = {
+    val in = unpacker._get("in").asInstanceOf[org.neo4j.bolt.v1.packstream.PackInput];
+    val blob = _readBlobValueFromBoltStreamIfAvailable(new PackInputInterface() {
+      def peekByte(): Byte = in.peekByte();
+
+      def readByte(): Byte = in.readByte();
+
+      def readBytes(bytes: Array[Byte], offset: Int, toRead: Int) = in.readBytes(bytes, offset, toRead);
+
+      def readInt(): Int = in.readInt();
+
+      def readLong(): Long = in.readLong();
+    });
+
+    if (null == blob)
+      null;
+    else
+      new BlobValue(blob);
   }
 
   private def _wrapBlobValueAsLongArray(value: BlobValueInterface, blobId: BlobId, keyId: Int = 0): Array[Long] = {
@@ -235,7 +290,6 @@ class BoltBlobValue(val blob: Blob)
 
   override def hashCode: Int = blob.hashCode()
 
-  override def toString: String = s"BoltBlobValue(blob=${blob.toString})"
 
   override def asBlob: Blob = blob;
 

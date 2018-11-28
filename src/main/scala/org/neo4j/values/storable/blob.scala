@@ -84,7 +84,7 @@ class InlineBlob(bytes: Array[Byte], val length: Long, val mimeType: MimeType)
     override def offerStream[T](consume: (InputStream) => T): T = {
       val fis = new ByteArrayInputStream(bytes);
       if (logger.isDebugEnabled)
-        logger.debug(s"InlineBlobValue: len=${bytes.length}");
+        logger.debug(s"InlineBlob: length=${bytes.length}");
       val t = consume(fis);
       fis.close();
       t;
@@ -99,7 +99,7 @@ class RemoteBlob(urlConnector: String, blobId: BlobId, val length: Long, val mim
     def offerStream[T](consume: (InputStream) => T): T = {
       val url = new URL(s"$urlConnector?bid=${blobId.asLiteralString()}");
       if (logger.isDebugEnabled)
-        logger.debug(s"RemoteBlobValue: $url");
+        logger.debug(s"RemoteBlobValue: url=$url");
       val connection = url.openConnection().asInstanceOf[HttpURLConnection];
       connection.setDoOutput(false);
       connection.setDoInput(true);
@@ -116,8 +116,13 @@ class RemoteBlob(urlConnector: String, blobId: BlobId, val length: Long, val mim
   }
 }
 
+/**
+  * common interface for BlobValue & BoltBlobValue
+  */
 trait BlobValueInterface {
   val blob: Blob;
+
+  override def toString: String = s"BoltBlobValue(blob=${blob.toString})"
 }
 
 class BlobValue(val blob: Blob) extends ScalarValue with BlobValueInterface {

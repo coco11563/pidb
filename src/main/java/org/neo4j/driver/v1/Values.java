@@ -94,7 +94,9 @@ public abstract class Values
         if ( value == null ) { return NullValue.NULL; }
 
         //NOTE: blob
-        if ( value instanceof Blob) { return new BoltBlobValue((Blob)value); }
+        if ( value instanceof Blob) {
+            return new BoltBlobValue((Blob)value);
+        }
 
         if ( value instanceof AsValue ) { return ((AsValue) value).asValue(); }
         if ( value instanceof Boolean ) { return value( (boolean) value ); }
