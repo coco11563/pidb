@@ -207,7 +207,7 @@ class TransactionBoundPlanContext(tc: TransactionalContextWrapper, logger: Inter
     case Neo4jTypes.NTMap => CTMap
     case Neo4jTypes.NTAny => CTAny
     ////NOTE: blob
-    case Blob.NEO_BLOB_TYPE => Blob.CYPHER_BLOB_TYPE
+    case Neo4jTypes.NTBlob => CTBlob
   }
 
   override def notificationLogger(): InternalNotificationLogger = logger

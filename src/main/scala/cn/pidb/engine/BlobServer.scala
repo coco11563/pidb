@@ -10,6 +10,7 @@ import org.neo4j.values.storable.Blob
 
 import scala.collection.mutable
 
+//TODO: clear cache while session closed
 object BlobCacheInSession extends Logging {
   val cache = mutable.Map[String, Blob]();
 
@@ -28,19 +29,6 @@ object BlobCacheInSession extends Logging {
   def get(key: String): Option[Blob] = cache.get(key);
 }
 
-class BlobStreamServlet extends HttpServlet {
-  override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-    val blobId = req.getParameter("bid");
-    val opt = BlobCacheInSession.get(blobId);
-    if (opt.isDefined) {
-      opt.get.offerStream(IOUtils.copy(_, resp.getOutputStream));
-    }
-    else {
-      resp.sendError(500, s"invalid blob id: $blobId");
-    }
-  }
-}
-
 object BlobServer extends Logging {
   def startupBlobServer(httpPort: Int, servletPath: String): Unit = {
     val server = new Server(httpPort);
@@ -53,5 +41,18 @@ object BlobServer extends Logging {
     server.start();
 
     logger.info(s"blob server started on http://localhost:$httpPort$servletPath");
+  }
+
+  class BlobStreamServlet extends HttpServlet {
+    override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+      val blobId = req.getParameter("bid");
+      val opt = BlobCacheInSession.get(blobId);
+      if (opt.isDefined) {
+        opt.get.offerStream(IOUtils.copy(_, resp.getOutputStream));
+      }
+      else {
+        resp.sendError(500, s"invalid blob id: $blobId");
+      }
+    }
   }
 }

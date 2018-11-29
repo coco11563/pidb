@@ -31,7 +31,7 @@ import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.procedure.Name;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.Blob;
-import org.neo4j.values.storable.Blob$;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.time.*;
@@ -170,9 +170,9 @@ public class TypeMappers extends DefaultValueMapper {
             ntInteger(parseLong(s)));
 
     ////////NOTE: blob type
-    private static final DefaultValueConverter TO_BLOB = new DefaultValueConverter(Blob$.MODULE$.NEO_BLOB_TYPE(),
+    private static final DefaultValueConverter TO_BLOB = new DefaultValueConverter(NTBlob,
             Blob.class, s ->
-            new DefaultParameterValue(s, Blob$.MODULE$.NEO_BLOB_TYPE()));
+            new DefaultParameterValue(s, Neo4jTypes.NTBlob));
     ///////
 
     private static final DefaultValueConverter TO_FLOAT = new DefaultValueConverter(NTFloat, Double.class, s ->

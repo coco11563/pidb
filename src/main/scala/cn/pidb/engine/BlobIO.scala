@@ -67,14 +67,11 @@ object BlobIO extends Logging {
 
     //write inline
     if (inline) {
-      val bytes = value.blob.toByteArray();
+      val bytes = value.blob.toBytes();
       out.writeBytes(bytes);
     }
     else {
       //write as a HTTP resource
-      val t = Thread.currentThread();
-      System.err.println(t.toString)
-      System.err.println(t.hashCode)
       val config: Config = ThreadVars.get[Config]("config");
       val httpConnectorUrl: String = config.getRuntimeContext("blob.server.connector.url").asInstanceOf[String];
       //http://localhost:1224/blob

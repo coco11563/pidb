@@ -18,6 +18,16 @@ class BlobFuncTest {
     val db = openDatabase();
 
     val tx = db.beginTx();
+
+    Assert.assertEquals(0, db.execute("return Blob.empty() as blob").next().get("blob")
+      .asInstanceOf[Blob].length);
+
+    Assert.assertEquals(0, db.execute("return Blob.len(Blob.empty()) as len").next().get("len").asInstanceOf[Long]);
+    Assert.assertArrayEquals("hello world".getBytes("utf-8"),
+      db.execute("return Blob.fromUTF8String('hello world') as x").next().get("x").asInstanceOf[Blob].toBytes());
+    Assert.assertEquals("hello world",
+      db.execute("return Blob.toUTF8String(Blob.fromUTF8String('hello world')) as x").next().get("x").asInstanceOf[String]);
+
     //create a node
     val node1 = db.createNode();
     node1.setProperty("name", "bob");

@@ -4,7 +4,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import java.{lang, util}
 
-import cn.pidb.func.BlobFunctions
+import cn.pidb.func.BlobFunc
 import cn.pidb.util.ConfigEx._
 import cn.pidb.util.Logging
 import cn.pidb.util.ReflectUtils._
@@ -76,10 +76,11 @@ object PidbEngine extends Logging {
     val storage = BlobStorage.create(conf);
     conf.putRuntimeContext[BlobStorage](storage);
     storage.connect(conf);
-    registerProcedure(db, classOf[BlobFunctions]);
+    registerProcedure(db, classOf[BlobFunc]);
 
     afterCreate(conf, db);
 
+    //TODO: disconnect storage backend in a LifeCycle service
     new DelegatedGraphDatabaseService(db) {
       override def shutdown(): Unit = {
         storage.disconnect();

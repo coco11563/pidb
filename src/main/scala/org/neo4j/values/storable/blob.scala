@@ -6,9 +6,7 @@ import java.net.{HttpURLConnection, URL}
 import cn.pidb.engine.{BlobIO, BlobId}
 import cn.pidb.util.{Logging, MimeType}
 import org.apache.commons.io.IOUtils
-import org.neo4j.cypher.internal.util.v3_4.symbols._
 import org.neo4j.driver.internal.types.{TypeConstructor, TypeRepresentation}
-import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.values.ValueMapper
 
 trait InputStreamSource {
@@ -25,7 +23,7 @@ trait Blob {
 
   def offerStream[T](consume: (InputStream) => T): T = streamSource.offerStream(consume);
 
-  def toByteArray() = offerStream(IOUtils.toByteArray(_));
+  def toBytes() = offerStream(IOUtils.toByteArray(_));
 
   override def toString = s"blob(length=${length},mime-type=${mimeType.text})";
 }
@@ -35,14 +33,18 @@ object Blob {
   class BlobImpl(val streamSource: InputStreamSource, val length: Long, val mimeType: MimeType) extends Blob {
   }
 
-  val EMPTY: Blob = fromInputStreamSource(new InputStreamSource() {
-    override def offerStream[T](consume: (InputStream) => T): T = {
-      val fis = new ByteArrayInputStream(Array[Byte]());
-      val t = consume(fis);
-      fis.close();
-      t;
-    }
-  }, 0, Some(MimeType.fromText("application/octet-stream")));
+  def fromBytes(bytes: Array[Byte]): Blob = {
+    fromInputStreamSource(new InputStreamSource() {
+      override def offerStream[T](consume: (InputStream) => T): T = {
+        val fis = new ByteArrayInputStream(bytes);
+        val t = consume(fis);
+        fis.close();
+        t;
+      }
+    }, 0, Some(MimeType.fromText("application/octet-stream")));
+  }
+
+  val EMPTY: Blob = fromBytes(Array[Byte]());
 
   def fromInputStreamSource(iss: InputStreamSource, length: Long, mimeType: Option[MimeType] = None) = {
     new BlobImpl(iss,
@@ -63,18 +65,7 @@ object Blob {
       mimeType);
   }
 
-  val NEO_BLOB_TYPE = new NeoBlobType();
-  val CYPHER_BLOB_TYPE = new CypherBlobType();
   val BOLT_BLOB_TYPE = new TypeRepresentation(TypeConstructor.BLOB);
-}
-
-class NeoBlobType extends Neo4jTypes.AnyType("BLOB?") {
-}
-
-class CypherBlobType extends CypherType {
-  override def parentType = CTAny
-
-  override def toNeoTypeString = "BLOB?"
 }
 
 class InlineBlob(bytes: Array[Byte], val length: Long, val mimeType: MimeType)
