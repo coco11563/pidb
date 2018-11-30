@@ -1,12 +1,13 @@
-import java.io.{FileInputStream, File}
+import java.io.{File, FileInputStream}
 
-import cn.pidb.engine.PidbEngine
-import org.apache.commons.io.{IOUtils, FileUtils}
+import cn.pidb.engine.PidbConnector
+import org.apache.commons.io.{FileUtils, IOUtils}
 import org.neo4j.values.storable.Blob
 
 class TestBase {
   def openDatabase() =
-    PidbEngine.openDatabase(new File("./testdb"), "./neo4j.properties");
+    PidbConnector.openDatabase(new File("./testdb/data/databases/graph.db"),
+      new File("./neo4j.conf"));
 
   def setupNewDatabase(): Unit = {
     FileUtils.deleteDirectory(new File("./testdb"));

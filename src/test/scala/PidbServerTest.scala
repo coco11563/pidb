@@ -1,6 +1,6 @@
 import java.io.{File, FileInputStream}
 
-import cn.pidb.engine.PidbEngine
+import cn.pidb.engine.PidbConnector
 import org.apache.commons.io.IOUtils
 import org.junit.{Assert, Test}
 import org.neo4j.driver.v1.Record
@@ -12,8 +12,8 @@ class PidbServerTest extends TestBase {
   def testProperty(): Unit = {
     setupNewDatabase();
 
-    val server = PidbEngine.startServer(new File("./testdb"), "./neo4j.properties");
-    val client = PidbEngine.connect();
+    val server = PidbConnector.startServer(new File("./testdb"), new File("./neo4j.conf"));
+    val client = PidbConnector.connect();
 
     //a non-blob
     val (name, age, bytes) = client.querySingleObject("match (n) where n.name='bob' return n.name, n.age, n.bytes", (result: Record) => {

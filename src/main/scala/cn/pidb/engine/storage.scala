@@ -43,20 +43,11 @@ trait BlobStorage {
 
   def exists(bid: BlobId): Boolean;
 
-  def connect(conf: Config): Unit;
+  def initialize(conf: Config): Unit;
 
   def load(bid: BlobId): InputStreamSource;
 
   def loadBatch(bids: Iterable[BlobId]): Iterable[InputStreamSource] = bids.map(load(_));
 
   def disconnect(): Unit;
-}
-
-object BlobStorage extends Logging {
-  def create(conf: Config): BlobStorage = {
-    val storageName = conf.getValueAsString("blob.storage", "cn.pidb.engine.FileBlobStorage");
-    val blobStorage = Class.forName(storageName).newInstance().asInstanceOf[BlobStorage];
-
-    blobStorage;
-  }
 }

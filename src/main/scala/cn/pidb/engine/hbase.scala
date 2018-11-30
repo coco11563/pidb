@@ -40,7 +40,7 @@ class HbaseBlobStorage extends BlobStorage with Logging {
     }
   }
 
-  override def connect(conf: Config): Unit = {
+  override def initialize(conf: Config): Unit = {
     val hbaseConf = HBaseConfiguration.create();
     hbaseConf.set("hbase.zookeeper.property.clientPort", conf.getValueAsString("blob.storage.hbase.zookeeper.port", "2181"));
     hbaseConf.set("hbase.zookeeper.quorum", conf.getRequiredValueAsString("blob.storage.hbase.zookeeper.quorum"));

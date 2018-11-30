@@ -1,6 +1,6 @@
 import java.io.File
 
-import cn.pidb.engine.PidbEngine
+import cn.pidb.engine.PidbConnector
 import org.apache.commons.io.FileUtils
 import org.neo4j.values.storable.Blob
 
@@ -14,7 +14,7 @@ object BlobIOPerfTest {
 
     println(s"dir: $dir, number: $n");
     FileUtils.deleteDirectory(new File(dir));
-    val db = PidbEngine.openDatabase(new File(dir), "./neo4j.properties");
+    val db = PidbConnector.openDatabase(new File(dir), new File("./neo4j.conf"));
 
     println("start inserting blobs...");
     val start = System.currentTimeMillis();

@@ -2,8 +2,11 @@ package cn.pidb.func
 
 import java.io.File
 
+import cn.pidb.processor.Processor
 import org.neo4j.procedure.{Description, Name, UserFunction}
 import org.neo4j.values.storable.Blob
+
+import scala.collection.JavaConversions
 
 /**
   * Created by bluejoe on 2018/7/22.
@@ -88,6 +91,12 @@ class BlobFunc {
   @Description("get mime type of a blob object")
   def getMinorMimeType(@Name("blob") blob: Blob): String = {
     blob.mimeType.text.split("/")(1);
+  }
+
+  @UserFunction("Blob.process")
+  @Description("get mime type of a blob object")
+  def process(@Name("blob") blob: Blob, @Name("processorName") processorName: String): java.util.Map[String, Any] = {
+    JavaConversions.mapAsJavaMap(Processor.get(processorName).predict(blob));
   }
 }
 

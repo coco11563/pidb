@@ -10,7 +10,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <compile.version>1.8</compile.version>
-        <jetty.version>9.0.0.M0</jetty.version>
+        <jetty.version>9.4.8.v20171121</jetty.version>
         <neo4j.version>3.4.0</neo4j.version>
     </properties>
     <dependencies>
@@ -35,6 +35,12 @@
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j</artifactId>
+            <version>${neo4j.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.neo4j.app/neo4j-server -->
+        <dependency>
+            <groupId>org.neo4j.app</groupId>
+            <artifactId>neo4j-server</artifactId>
             <version>${neo4j.version}</version>
         </dependency>
         <dependency>
@@ -95,6 +101,12 @@
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-servlet</artifactId>
             <version>${jetty.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.codehaus.jackson/jackson-jaxrs -->
+        <dependency>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-jaxrs</artifactId>
+            <version>1.9.13</version>
         </dependency>
     </dependencies>
     <build>

@@ -1,8 +1,9 @@
 import java.io.File
 
-import cn.pidb.engine.PidbEngine
+import cn.pidb.engine.PidbConnector
 
 class LocalPidbWithHbaseTest extends LocalPidbTest {
   override def openDatabase() =
-    PidbEngine.openDatabase(new File("./testdb"), "./neo4j-hbase.properties");
+    PidbConnector.openDatabase(new File("./testdb/data/databases/graph.db"),
+      new File("./neo4j-hbase.properties"));
 }

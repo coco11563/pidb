@@ -1,7 +1,7 @@
 import java.io.{File, FileInputStream}
 import java.util
 
-import cn.pidb.engine.PidbEngine
+import cn.pidb.engine.PidbConnector
 import cn.pidb.util.CodecUtils
 import org.apache.commons.io.FileUtils
 import org.junit.{Assert, Test}
@@ -9,7 +9,8 @@ import org.neo4j.values.storable.Blob
 
 class BlobFuncTest {
 
-  def openDatabase() = PidbEngine.openDatabase(new File("./testdb"), "./neo4j.properties");
+  def openDatabase() = PidbConnector.openDatabase(new File("./testdb/data/databases/graph.db"),
+    new File("./neo4j.conf"));
 
   @Test
   def test(): Unit = {

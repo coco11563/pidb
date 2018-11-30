@@ -104,6 +104,3 @@ class BoltService(url: String = "bolt://localhost:8687", user: String = "", pass
     });
   }
 }
-
-class PidbClient(url: String = "bolt://localhost:8687", user: String = "", pass: String = "")
-  extends BoltService(url, user, pass)
