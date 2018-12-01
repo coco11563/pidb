@@ -3,7 +3,7 @@ package cn.pidb.engine
 import java.io.File
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
-import cn.pidb.func.BlobFunc
+import cn.pidb.func.{AIFunc, BlobFunc}
 import cn.pidb.util.ConfigEx._
 import cn.pidb.util.Logging
 import org.apache.commons.io.IOUtils
@@ -61,12 +61,13 @@ class BlobTypeSupport(storeDir: File, config: Config, proceduresService: Procedu
     val storageName = config.getValueAsString("blob.storage", "cn.pidb.engine.FileBlobStorage")
     _blobStorage = Class.forName(storageName).newInstance().asInstanceOf[BlobStorage];
 
-    _blobStorage.initialize(config);
+    _blobStorage.initialize(storeDir, config);
     config.putRuntimeContext[BlobStorage](_blobStorage);
 
     logger.info(s"blob storage initialized: ${_blobStorage}");
 
     registerProcedure(classOf[BlobFunc]);
+    registerProcedure(classOf[AIFunc]);
     startBlobServerIfNeeded();
   }
 

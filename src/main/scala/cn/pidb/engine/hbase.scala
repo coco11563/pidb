@@ -1,6 +1,6 @@
 package cn.pidb.engine
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.{ByteArrayInputStream, File, InputStream}
 
 import cn.pidb.util.ConfigEx._
 import cn.pidb.util.{ByteArrayUtils, Logging}
@@ -9,7 +9,7 @@ import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, HTable, Put}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
 import org.neo4j.kernel.configuration.Config
-import org.neo4j.values.storable.{Blob,  InputStreamSource}
+import org.neo4j.values.storable.{Blob, InputStreamSource}
 
 class HbaseBlobStorage extends BlobStorage with Logging {
   var _table: HTable = _;
@@ -40,7 +40,7 @@ class HbaseBlobStorage extends BlobStorage with Logging {
     }
   }
 
-  override def initialize(conf: Config): Unit = {
+  override def initialize(storeDir: File, conf: Config): Unit = {
     val hbaseConf = HBaseConfiguration.create();
     hbaseConf.set("hbase.zookeeper.property.clientPort", conf.getValueAsString("blob.storage.hbase.zookeeper.port", "2181"));
     hbaseConf.set("hbase.zookeeper.quorum", conf.getRequiredValueAsString("blob.storage.hbase.zookeeper.quorum"));

@@ -1,5 +1,6 @@
 package cn.pidb.engine
 
+import java.io.File
 import java.util.UUID
 
 import cn.pidb.util.ConfigEx._
@@ -43,7 +44,7 @@ trait BlobStorage {
 
   def exists(bid: BlobId): Boolean;
 
-  def initialize(conf: Config): Unit;
+  def initialize(storeDir: File, conf: Config): Unit;
 
   def load(bid: BlobId): InputStreamSource;
 

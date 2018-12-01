@@ -57,8 +57,8 @@ class FileBlobStorage extends BlobStorage with Logging {
     readFromBlobFile(fileLocation(bid))._2.streamSource
   }
 
-  override def initialize(conf: Config): Unit = {
-    val baseDir: File = new File(conf.getRaw("unsupported.dbms.directories.neo4j_home").get());
+  override def initialize(storeDir: File, conf: Config): Unit = {
+    val baseDir: File = storeDir; //new File(conf.getRaw("unsupported.dbms.directories.neo4j_home").get());
     _blobDir = conf.getAsFile("blob.storage.file.dir", baseDir, new File(baseDir, "/blob"));
 
     _blobDir.mkdirs();

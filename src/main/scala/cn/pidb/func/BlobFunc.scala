@@ -2,11 +2,8 @@ package cn.pidb.func
 
 import java.io.File
 
-import cn.pidb.processor.Processor
 import org.neo4j.procedure.{Description, Name, UserFunction}
 import org.neo4j.values.storable.Blob
-
-import scala.collection.JavaConversions
 
 /**
   * Created by bluejoe on 2018/7/22.
@@ -54,19 +51,34 @@ class BlobFunc {
   @UserFunction("Blob.len")
   @Description("get length of a blob object")
   def getBlobLength(@Name("blob") blob: Blob): Long = {
-    blob.length;
+    if (blob == null) {
+      null.asInstanceOf[Long]
+    }
+    else {
+      blob.length
+    }
   }
 
   @UserFunction("Blob.toString")
   @Description("cast to a string")
   def cast2String(@Name("blob") blob: Blob, @Name("encoding") encoding: String): String = {
-    new String(blob.toBytes(), encoding);
+    if (blob == null) {
+      null
+    }
+    else {
+      new String(blob.toBytes(), encoding);
+    }
   }
 
   @UserFunction("Blob.toUTF8String")
   @Description("cast to a string in utf-8 encoding")
   def cast2UTF8String(@Name("blob") blob: Blob): String = {
-    new String(blob.toBytes(), "utf-8");
+    if (blob == null) {
+      null
+    }
+    else {
+      new String(blob.toBytes(), "utf-8");
+    }
   }
 
   @UserFunction("Blob.toBytes")
@@ -78,25 +90,51 @@ class BlobFunc {
   @UserFunction("Blob.mime")
   @Description("get mime type of a blob object")
   def getMimeType(@Name("blob") blob: Blob): String = {
-    blob.mimeType.text;
+    if (blob == null) {
+      null
+    }
+    else {
+      blob.mimeType.text
+    }
   }
 
   @UserFunction("Blob.mime1")
   @Description("get mime type of a blob object")
   def getMajorMimeType(@Name("blob") blob: Blob): String = {
-    blob.mimeType.text.split("/")(0);
+    if (blob == null) {
+      null
+    }
+    else {
+      blob.mimeType.text.split("/")(0)
+    }
   }
 
   @UserFunction("Blob.mime2")
   @Description("get mime type of a blob object")
   def getMinorMimeType(@Name("blob") blob: Blob): String = {
-    blob.mimeType.text.split("/")(1);
+    if (blob == null) {
+      null
+    }
+    else {
+      blob.mimeType.text.split("/")(1);
+    }
   }
 
-  @UserFunction("Blob.process")
-  @Description("get mime type of a blob object")
-  def process(@Name("blob") blob: Blob, @Name("processorName") processorName: String): java.util.Map[String, Any] = {
-    JavaConversions.mapAsJavaMap(Processor.get(processorName).predict(blob));
+  @UserFunction("Blob.is")
+  @Description("determine if the blob is kind of specified mime type")
+  def is(@Name("blob") blob: Blob, @Name("mimeType") mimeType: String): Boolean = {
+    if (blob == null) {
+      false
+    }
+    else {
+      val a = mimeType.split("/");
+      if (a.length == 1) {
+        blob.mimeType.major.equalsIgnoreCase(a(0))
+      }
+      else {
+        blob.mimeType.major.equalsIgnoreCase(a(0)) && blob.mimeType.minor.equalsIgnoreCase(a(1))
+      }
+    }
   }
 }
 

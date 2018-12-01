@@ -8,7 +8,6 @@ import org.junit.{Assert, Test}
 import org.neo4j.values.storable.Blob
 
 class BlobFuncTest {
-
   def openDatabase() = PidbConnector.openDatabase(new File("./testdb/data/databases/graph.db"),
     new File("./neo4j.conf"));
 
