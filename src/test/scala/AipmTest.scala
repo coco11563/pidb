@@ -1,6 +1,5 @@
 import java.io.File
-
-import cn.pidb.functor.ExternalProcessFunctor
+import cn.pidb.func.ExternalProcessFunctor
 import cn.pidb.util.StreamUtils._
 import org.junit.Test
 import org.neo4j.values.storable.Blob
@@ -19,7 +18,7 @@ object AipmTest {
   @Test
   def main(args: Array[String]) {
     val epf = new ExternalProcessFunctor(cmds, Array("name"));
-    val map = epf.predict(Blob.fromFile(new File("./test.png")));
+    val map = epf.op(Blob.fromFile(new File("./test.png")));
     println(map);
   }
 }

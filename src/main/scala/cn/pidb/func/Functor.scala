@@ -1,55 +1,72 @@
-package cn.pidb.functor
+package cn.pidb.func
 
-import java.io.ByteArrayOutputStream
+import java.io.{ByteArrayOutputStream, File, FileOutputStream}
 
 import cn.pidb.util.StreamUtils._
 import org.apache.commons.io.IOUtils
 import org.neo4j.kernel.configuration.Config
 import org.neo4j.values.storable.Blob
 
-import scala.collection.mutable
+import scala.collection.Iterable
 import scala.util.parsing.json.JSON
 
 /**
   * Created by bluejoe on 2018/11/29.
   */
-object Functor {
-  val functors = mutable.Map[String, Functor]();
-
-  def register(name: String, processor: Functor) = {
-    functors(name) = processor;
+trait BlobFunctor {
+  def mkTempFile(blob: Blob): File = {
+    blob.offerStream((is) => {
+      val f = File.createTempFile("blob-", "");
+      IOUtils.copy(is, new FileOutputStream(f));
+      f;
+    })
   }
 
-  def get(name: String): Functor = {
-    functors.getOrElseUpdate(name, {
-      Class.forName(name).newInstance().asInstanceOf[Functor];
+  /**
+    * convert a scala object to an neo4j typed object
+    *
+    * @param x
+    * @return
+    */
+  def neotyped(x: Any): Any = {
+    x match {
+      case m: Map[String, Any]
+      =>
+        val jm = new java.util.HashMap[String, Any]();
+        m.map((kv) => (kv._1, neotyped(kv._2))).foreach((kv) => jm.put(kv._1, kv._2));
+        jm
+
+      case l: Iterable[Any]
+      => l.map((v) => neotyped(v)).toArray
+
+      case a: Array[Any]
+      => a.map((v) => neotyped(v))
+
+      case _ => x
     }
-    )
   }
 }
 
-trait Functor {
-  def train(blob: Blob);
-
+trait BlobFunctor1 extends BlobFunctor {
   def initialize(config: Config);
 
   def getMapKeys(): Array[String];
 
-  def predict(blob: Blob): Map[String, Any];
+  //def getDescription() : String;
+
+  //def getQualifiedName(): String;
+
+  def op(blob: Blob): Map[String, Any];
 }
 
-class ExternalProcessFunctor(commands: Array[String], keys: Array[String]) extends Functor {
-  def train(blob: Blob): Unit = {
-
-  }
-
+class ExternalProcessFunctor(commands: Array[String], keys: Array[String]) extends BlobFunctor1 {
   def initialize(config: Config): Unit = {
 
   }
 
   def getMapKeys(): Array[String] = keys;
 
-  def predict(blob: Blob): Map[String, Any] = {
+  def op(blob: Blob): Map[String, Any] = {
     val process: Process = Runtime.getRuntime().exec(commands);
     val pos = process.getOutputStream;
     val pis = process.getInputStream;

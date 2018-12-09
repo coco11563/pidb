@@ -1,9 +1,10 @@
 package cn.pidb.engine
 
 import java.io.File
+import java.net.URLClassLoader
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
-import cn.pidb.func.{AIFunc, BlobFunc}
+import cn.pidb.func.{BlobFunc, BlobFunctor}
 import cn.pidb.util.ConfigEx._
 import cn.pidb.util.Logging
 import org.apache.commons.io.IOUtils
@@ -13,8 +14,10 @@ import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.proc.Procedures
 import org.neo4j.kernel.lifecycle.Lifecycle
 import org.neo4j.values.storable.Blob
+import org.reflections.Reflections
+import org.reflections.util.ConfigurationBuilder
 
-import scala.collection.mutable
+import scala.collection.{JavaConversions, mutable}
 
 /**
   * Created by bluejoe on 2018/11/29.
@@ -67,7 +70,8 @@ class BlobTypeSupport(storeDir: File, config: Config, proceduresService: Procedu
     logger.info(s"blob storage initialized: ${_blobStorage}");
 
     registerProcedure(classOf[BlobFunc]);
-    registerProcedure(classOf[AIFunc]);
+    findAndRegisterBlobFunctors(proceduresService);
+    //registerProcedure(classOf[AIFunc]);
     startBlobServerIfNeeded();
   }
 
@@ -75,6 +79,31 @@ class BlobTypeSupport(storeDir: File, config: Config, proceduresService: Procedu
     for (procedure <- procedures) {
       proceduresService.registerProcedure(procedure);
       proceduresService.registerFunction(procedure);
+    }
+  }
+
+  def findAndRegisterBlobFunctors(proceduresService: Procedures): Unit = {
+    //find all modules
+    val dir = new File("/usr/local/aipm/modules/");
+    dir.listFiles.filter(_.isDirectory).foreach { (subdir) =>
+      val jars = new File(subdir, "lib").listFiles().filter { (f) =>
+        f.isFile && f.getName.endsWith(".jar")
+      };
+
+      val urls = jars.map(_.toURI.toURL);
+      val reflections = new Reflections(
+        new ConfigurationBuilder()
+          .setUrls(JavaConversions.asJavaCollection(urls))
+          .addClassLoader(new URLClassLoader(urls))
+      );
+
+      val types = JavaConversions.asScalaSet(reflections.getSubTypesOf(classOf[BlobFunctor]));
+      types.filter(!_.isInterface).foreach { (ft) =>
+        logger.debug(s"find blob functor class `${ft.getName}` in: ${ft.getProtectionDomain().getCodeSource().getLocation().getFile()}");
+
+        proceduresService.registerProcedure(ft);
+        proceduresService.registerFunction(ft);
+      }
     }
   }
 }
